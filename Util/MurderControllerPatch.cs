@@ -111,7 +111,7 @@ namespace MurderMayhem
         {
             try
             {
-                string moName = MurderController.Instance?.chosenMO?.name ?? "(null)";
+                string moName = __instance?.mo?.name ?? "(null)";
                 string locName = newLoc != null ? newLoc.name : "null";
                 Plugin.Log?.LogInfo($"[Patch] SetMurderLocation called. MO={moName}, newLoc={locName}");
                 // No-op for now: allow original behavior
@@ -130,7 +130,7 @@ namespace MurderMayhem
         {
             try
             {
-                string moName = MurderController.Instance?.chosenMO?.name ?? "(null)";
+                string moName = __instance?.mo?.name ?? "(null)";
                 string locName = newLoc != null ? newLoc.name : "null";
                 Plugin.Log?.LogInfo($"[Patch] IsValidLocation called. MO={moName}, loc={locName}, result={__result}");
 
@@ -163,8 +163,11 @@ namespace MurderMayhem
                     {
                         var asAddress = newLoc.thisAsAddress;
                         var preset = asAddress?.addressPreset?.presetName ?? "(null)";
-                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowAlley-Mayhem true; preset={preset}");
-                        if (string.Equals(preset, "Alley", StringComparison.OrdinalIgnoreCase))
+                        bool isStreet = newLoc is StreetController;
+                        bool streetIsAlley = isStreet && ((StreetController)newLoc).isAlley;
+                        var typeName = newLoc.GetType().Name;
+                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowAlley-Mayhem true; preset={preset}, type={typeName}, isStreet={isStreet}, streetIsAlley={streetIsAlley}");
+                        if (string.Equals(preset, "Alley", StringComparison.OrdinalIgnoreCase) || streetIsAlley)
                         {
                             if (MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
                             {
@@ -286,6 +289,86 @@ namespace MurderMayhem
                 return true;
 
             return false;
+        }
+    }
+
+    // Extend victim movement during waitForLocation to consider custom locations (e.g., alleys, workplace via custom flags)
+    [HarmonyPatch(typeof(MurderController), "Update")]
+    public class UpdatePatch
+    {
+        public static void Postfix(MurderController __instance)
+        {
+            try
+            {
+                var m = __instance?.GetCurrentMurder();
+                if (m == null)
+                    return;
+
+                if (m.state != MurderController.MurderState.waitForLocation || !SessionData.Instance.play)
+                    return;
+
+                // Mirror base timing gate for creating GoTo goals while waiting
+                if (SessionData.Instance.gameTime - m.waitingTimestamp <= 0.25f)
+                    return;
+
+                // If base already created a generic GoTo goal, don't duplicate
+                bool hasToGo = false;
+                if (m.victim != null && m.victim.ai != null && m.victim.ai.goals != null)
+                {
+                    foreach (var g in m.victim.ai.goals)
+                    {
+                        if (g != null && g.preset == RoutineControls.Instance.toGoGoal)
+                        {
+                            hasToGo = true;
+                            break;
+                        }
+                    }
+                }
+                if (hasToGo)
+                    return;
+
+                string moName = m?.mo?.name ?? "(null)";
+                var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                if (caseInfo == null)
+                    return;
+
+                // Custom: allowWork-Mayhem -> send to workplace even if vanilla allowWork is false
+                if (caseInfo.HasAllowWorkMayhem)
+                {
+                    var workplace = m.victim?.job?.employer?.placeOfBusiness;
+                    if (workplace != null && MurderPatchHelpers.IsLocationUsable(m, workplace, caseInfo))
+                    {
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM work for victim {m.victim.GetCitizenName()} to: {workplace.name}", 2);
+                        var ai = m.victim.ai;
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(workplace, false, true), null, workplace, null, null, -2);
+                        return;
+                    }
+                }
+
+                // Custom: allowAlley-Mayhem -> choose a suitable alley street
+                if (caseInfo.HasAllowAlleyMayhem)
+                {
+                    StreetController chosen = null;
+                    foreach (var s in CityData.Instance.streetDirectory)
+                    {
+                        if (s.isAlley && MurderPatchHelpers.IsLocationUsable(m, s, caseInfo) && (chosen == null || s.currentOccupants.Count < chosen.currentOccupants.Count))
+                        {
+                            chosen = s;
+                        }
+                    }
+                    if (chosen != null)
+                    {
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM alley for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
+                        var ai = m.victim.ai;
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"Error in UpdatePatch.Postfix: {ex.Message}");
+            }
         }
     }
 }
