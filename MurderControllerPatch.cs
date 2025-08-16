@@ -27,7 +27,12 @@ namespace MurderMayhem
                     if (isCustomCase)
                     {
                         Plugin.Log?.LogInfo($"CUSTOM CASE DETECTED: {murderType}");
-                        // TODO: Apply special handling for custom cases
+                        var caseInfo = Plugin.CustomCases.FirstOrDefault(c => string.Equals(c.PresetName, murderType, StringComparison.OrdinalIgnoreCase));
+                        if (caseInfo != null)
+                        {
+                            Plugin.Log?.LogInfo($"Custom Case Profile: {caseInfo.ProfileName}");
+                            Plugin.Log?.LogInfo($"Location Keys Present: {caseInfo.GetLocationKeysInfo()}");
+                        }
                     }
                 }
             }
@@ -56,6 +61,64 @@ namespace MurderMayhem
             }
             
             return false;
+        }
+    }
+
+    // Base no-op patches to enable future custom location handling for custom MurderMOs
+    [HarmonyPatch(typeof(MurderController.Murder), "TryPickNewVictimSite")]
+    public class TryPickNewVictimSitePatch
+    {
+        public static void Postfix(MurderController.Murder __instance, ref bool __result, ref NewGameLocation newTargetSite)
+        {
+            try
+            {
+                string moName = __instance?.mo?.name ?? "(null)";
+                string siteName = newTargetSite != null ? newTargetSite.name : "null";
+                Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSite called. MO={moName}, result={__result}, site={siteName}");
+                // No-op for now: allow original behavior, future logic may override __result/newTargetSite
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"Error in TryPickNewVictimSitePatch: {ex.Message}");
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(MurderController.Murder), "SetMurderLocation")]
+    public class SetMurderLocationPatch
+    {
+        public static void Postfix(MurderController.Murder __instance, NewGameLocation newLoc)
+        {
+            try
+            {
+                string moName = MurderController.Instance?.chosenMO?.name ?? "(null)";
+                string locName = newLoc != null ? newLoc.name : "null";
+                Plugin.Log?.LogInfo($"[Patch] SetMurderLocation called. MO={moName}, newLoc={locName}");
+                // No-op for now: allow original behavior
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"Error in SetMurderLocationPatch: {ex.Message}");
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(MurderController.Murder), "IsValidLocation")]
+    public class IsValidLocationPatch
+    {
+        public static void Postfix(MurderController.Murder __instance, NewGameLocation newLoc, ref bool __result)
+        {
+            try
+            {
+                string moName = MurderController.Instance?.chosenMO?.name ?? "(null)";
+                string locName = newLoc != null ? newLoc.name : "null";
+                Plugin.Log?.LogInfo($"[Patch] IsValidLocation called. MO={moName}, loc={locName}, result={__result}");
+                // No-op for now: allow original behavior, future logic may adjust __result
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"Error in IsValidLocationPatch: {ex.Message}");
+            }
         }
     }
 }

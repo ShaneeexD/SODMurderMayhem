@@ -11,17 +11,46 @@ namespace MurderMayhem
         public string FilePath { get; }
         public string PresetName { get; }
         public string ProfileName { get; }
+        
+        // Location keys from the JSON file
+        public bool HasAllowAnywhere { get; }
+        public bool HasAllowHome { get; }
+        public bool HasAllowWork { get; }
+        public bool HasAllowPublic { get; }
+        public bool HasAllowStreets { get; }
+        public bool HasAllowDen { get; }
 
-        public CustomCaseInfo(string filePath, string presetName, string profileName)
+        public CustomCaseInfo(string filePath, string presetName, string profileName, 
+            bool hasAllowAnywhere, bool hasAllowHome, bool hasAllowWork, 
+            bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen)
         {
             FilePath = filePath;
             PresetName = presetName;
             ProfileName = profileName;
+            HasAllowAnywhere = hasAllowAnywhere;
+            HasAllowHome = hasAllowHome;
+            HasAllowWork = hasAllowWork;
+            HasAllowPublic = hasAllowPublic;
+            HasAllowStreets = hasAllowStreets;
+            HasAllowDen = hasAllowDen;
         }
 
         public override string ToString()
         {
             return $"{PresetName} ({ProfileName}) - {FilePath}";
+        }
+        
+        public string GetLocationKeysInfo()
+        {
+            var keys = new List<string>();
+            if (HasAllowAnywhere) keys.Add("Anywhere");
+            if (HasAllowHome) keys.Add("Home");
+            if (HasAllowWork) keys.Add("Work");
+            if (HasAllowPublic) keys.Add("Public");
+            if (HasAllowStreets) keys.Add("Streets");
+            if (HasAllowDen) keys.Add("Den");
+            
+            return keys.Count > 0 ? string.Join(", ", keys) : "None";
         }
     }
 
@@ -63,7 +92,25 @@ namespace MurderMayhem
                             var presetName = match.Groups[1].Value;
                             if (string.IsNullOrWhiteSpace(presetName)) continue;
 
-                            results.Add(new CustomCaseInfo(jsonPath, presetName, profileName));
+                            // Check for location keys (presence only)
+                            bool hasAllowAnywhere = Regex.IsMatch(content, "\\\"allowAnywhere\\\"\\s*:", RegexOptions.IgnoreCase);
+                            bool hasAllowHome = Regex.IsMatch(content, "\\\"allowHome\\\"\\s*:", RegexOptions.IgnoreCase);
+                            bool hasAllowWork = Regex.IsMatch(content, "\\\"allowWork\\\"\\s*:", RegexOptions.IgnoreCase);
+                            bool hasAllowPublic = Regex.IsMatch(content, "\\\"allowPublic\\\"\\s*:", RegexOptions.IgnoreCase);
+                            bool hasAllowStreets = Regex.IsMatch(content, "\\\"allowStreets\\\"\\s*:", RegexOptions.IgnoreCase);
+                            bool hasAllowDen = Regex.IsMatch(content, "\\\"allowDen\\\"\\s*:", RegexOptions.IgnoreCase);
+
+                            results.Add(new CustomCaseInfo(
+                                jsonPath,
+                                presetName,
+                                profileName,
+                                hasAllowAnywhere,
+                                hasAllowHome,
+                                hasAllowWork,
+                                hasAllowPublic,
+                                hasAllowStreets,
+                                hasAllowDen
+                            ));
                         }
                         catch (Exception ex)
                         {
@@ -76,7 +123,10 @@ namespace MurderMayhem
                 {
                     Plugin.Log?.LogInfo($"Custom cases detected: {results.Count}");
                     foreach (var c in results.Take(10))
+                    {
                         Plugin.Log?.LogInfo($" - {c}");
+                        Plugin.Log?.LogInfo($"   Location Keys: {c.GetLocationKeysInfo()}");
+                    }
                     if (results.Count > 10)
                         Plugin.Log?.LogInfo($" ... and {results.Count - 10} more.");
                 }
