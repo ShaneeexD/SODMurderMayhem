@@ -17,6 +17,7 @@ namespace MurderMayhem
         public bool HasAllowHome { get; }
         public bool HasAllowWork { get; }
         public bool HasAllowWorkMayhem { get; }
+        public bool HasAllowAlleyMayhem { get; }
         public bool HasAllowPublic { get; }
         public bool HasAllowStreets { get; }
         public bool HasAllowDen { get; }
@@ -25,7 +26,7 @@ namespace MurderMayhem
 
         public CustomCaseInfo(string filePath, string presetName, string profileName, 
             bool hasAllowAnywhere, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
-            bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, int? occupancyLimit)
+            bool hasAllowAlleyMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, int? occupancyLimit)
         {
             FilePath = filePath;
             PresetName = presetName;
@@ -34,6 +35,7 @@ namespace MurderMayhem
             HasAllowHome = hasAllowHome;
             HasAllowWork = hasAllowWork;
             HasAllowWorkMayhem = hasAllowWorkMayhem;
+            HasAllowAlleyMayhem = hasAllowAlleyMayhem;
             HasAllowPublic = hasAllowPublic;
             HasAllowStreets = hasAllowStreets;
             HasAllowDen = hasAllowDen;
@@ -52,6 +54,7 @@ namespace MurderMayhem
             if (HasAllowHome) keys.Add("Home");
             if (HasAllowWork) keys.Add("Work");
             if (HasAllowWorkMayhem) keys.Add("Work-Mayhem");
+            if (HasAllowAlleyMayhem) keys.Add("Alley-Mayhem");
             if (HasAllowPublic) keys.Add("Public");
             if (HasAllowStreets) keys.Add("Streets");
             if (HasAllowDen) keys.Add("Den");
@@ -105,6 +108,7 @@ namespace MurderMayhem
                             bool hasAllowHome = ExtractBool(content, "allowHome");
                             bool hasAllowWork = ExtractBool(content, "allowWork");
                             bool hasAllowWorkMayhem = ExtractBool(content, "allowWork-Mayhem");
+                            bool hasAllowAlleyMayhem = ExtractBool(content, "allowAlley-Mayhem");
                             bool hasAllowPublic = ExtractBool(content, "allowPublic");
                             bool hasAllowStreets = ExtractBool(content, "allowStreets");
                             bool hasAllowDen = ExtractBool(content, "allowDen");
@@ -118,6 +122,7 @@ namespace MurderMayhem
                                 hasAllowHome,
                                 hasAllowWork,
                                 hasAllowWorkMayhem,
+                                hasAllowAlleyMayhem,
                                 hasAllowPublic,
                                 hasAllowStreets,
                                 hasAllowDen,
@@ -166,17 +171,19 @@ namespace MurderMayhem
                 .Replace('\u2012', '-') // figure dash
                 .Replace('\u2013', '-') // en dash
                 .Replace('\u2014', '-') // em dash
-                .Replace('\u2015', '-'); // horizontal bar
+                .Replace('\u2015', '-') // horizontal bar
+                .Replace('\u2212', '-') // minus sign
+                .Replace('\uFF0D', '-'); // fullwidth hyphen-minus
             return content;
         }
 
         private static bool ExtractBool(string content, string key)
         {
             if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(key)) return false;
-            var pattern = "\\\"" + Regex.Escape(key) + "\\\"\\s*:\\s*(true|false|1|0)";
+            var pattern = "\\\"" + Regex.Escape(key) + "\\\"\\s*:\\s*(?:\\\"(?<val>true|false|1|0)\\\"|(?<val>true|false|1|0))";
             var m = Regex.Match(content, pattern, RegexOptions.IgnoreCase);
             if (!m.Success) return false;
-            var val = m.Groups[1].Value;
+            var val = m.Groups["val"].Value;
             return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase) || val == "1";
         }
 

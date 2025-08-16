@@ -32,6 +32,11 @@ namespace MurderMayhem
                         {
                             Plugin.Log?.LogInfo($"Custom Case Profile: {caseInfo.ProfileName}");
                             Plugin.Log?.LogInfo($"Location Keys Present: {caseInfo.GetLocationKeysInfo()}");
+                            // Added: show file path and parsed flag booleans to diagnose selection & parsing
+                            Plugin.Log?.LogInfo($"Custom Case FilePath: {caseInfo.FilePath}");
+                            Plugin.Log?.LogInfo(
+                                $"Flags => Alley-Mayhem={caseInfo.HasAllowAlleyMayhem}, Work-Mayhem={caseInfo.HasAllowWorkMayhem}, Work={caseInfo.HasAllowWork}, Public={caseInfo.HasAllowPublic}, Streets={caseInfo.HasAllowStreets}, Home={caseInfo.HasAllowHome}, Anywhere={caseInfo.HasAllowAnywhere}, OccupancyLimit={(caseInfo.OccupancyLimit.HasValue ? caseInfo.OccupancyLimit.Value.ToString() : "null")}"
+                            );
                         }
                     }
                 }
@@ -83,7 +88,7 @@ namespace MurderMayhem
                     if (caseInfo?.HasAllowWorkMayhem == true)
                     {
                         var workplace = __instance.victim.job?.employer?.placeOfBusiness;
-                        if (workplace != null && MurderPatchHelpers.IsWorkLocationUsable(__instance, workplace, caseInfo))
+                        if (workplace != null && MurderPatchHelpers.IsLocationUsable(__instance, workplace, caseInfo))
                         {
                             newTargetSite = workplace;
                             __result = true;
@@ -146,10 +151,26 @@ namespace MurderMayhem
                         bool companyMatch = nlAddr != null && employer != null && nlAddr.company == employer;
                         Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowWork-Mayhem true; eq={eq}, addrEq={addrEq}, companyMatch={companyMatch}");
 
-                        if (MurderPatchHelpers.IsVictimWorkplace(__instance, newLoc) && MurderPatchHelpers.IsWorkLocationUsable(__instance, newLoc, caseInfo))
+                        if (MurderPatchHelpers.IsVictimWorkplace(__instance, newLoc) && MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
                         {
                             __result = true;
                             Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing victim workplace due to allowWork-Mayhem");
+                        }
+                    }
+
+                    // Alley support: accept Alley preset locations if custom key is set
+                    if (!__result && caseInfo?.HasAllowAlleyMayhem == true)
+                    {
+                        var asAddress = newLoc.thisAsAddress;
+                        var preset = asAddress?.addressPreset?.presetName ?? "(null)";
+                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowAlley-Mayhem true; preset={preset}");
+                        if (string.Equals(preset, "Alley", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                            {
+                                __result = true;
+                                Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing Alley due to allowAlley-Mayhem");
+                            }
                         }
                     }
                 }
@@ -187,7 +208,7 @@ namespace MurderMayhem
             return new string(filtered);
         }
 
-        internal static bool IsWorkLocationUsable(MurderController.Murder murder, NewGameLocation loc, CustomCaseInfo caseInfo)
+        internal static bool IsLocationUsable(MurderController.Murder murder, NewGameLocation loc, CustomCaseInfo caseInfo)
         {
             if (murder == null || loc == null)
                 return false;
