@@ -16,13 +16,16 @@ namespace MurderMayhem
         public bool HasAllowAnywhere { get; }
         public bool HasAllowHome { get; }
         public bool HasAllowWork { get; }
+        public bool HasAllowWorkMayhem { get; }
         public bool HasAllowPublic { get; }
         public bool HasAllowStreets { get; }
         public bool HasAllowDen { get; }
+        // Optional overrides
+        public int? OccupancyLimit { get; }
 
         public CustomCaseInfo(string filePath, string presetName, string profileName, 
-            bool hasAllowAnywhere, bool hasAllowHome, bool hasAllowWork, 
-            bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen)
+            bool hasAllowAnywhere, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
+            bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, int? occupancyLimit)
         {
             FilePath = filePath;
             PresetName = presetName;
@@ -30,9 +33,11 @@ namespace MurderMayhem
             HasAllowAnywhere = hasAllowAnywhere;
             HasAllowHome = hasAllowHome;
             HasAllowWork = hasAllowWork;
+            HasAllowWorkMayhem = hasAllowWorkMayhem;
             HasAllowPublic = hasAllowPublic;
             HasAllowStreets = hasAllowStreets;
             HasAllowDen = hasAllowDen;
+            OccupancyLimit = occupancyLimit;
         }
 
         public override string ToString()
@@ -46,9 +51,11 @@ namespace MurderMayhem
             if (HasAllowAnywhere) keys.Add("Anywhere");
             if (HasAllowHome) keys.Add("Home");
             if (HasAllowWork) keys.Add("Work");
+            if (HasAllowWorkMayhem) keys.Add("Work-Mayhem");
             if (HasAllowPublic) keys.Add("Public");
             if (HasAllowStreets) keys.Add("Streets");
             if (HasAllowDen) keys.Add("Den");
+            if (OccupancyLimit.HasValue) keys.Add($"OccupancyLimit={OccupancyLimit.Value}");
             
             return keys.Count > 0 ? string.Join(", ", keys) : "None";
         }
@@ -82,6 +89,7 @@ namespace MurderMayhem
                         try
                         {
                             var content = File.ReadAllText(jsonPath);
+                            content = NormalizeContent(content);
                             // Quick check for fileType: "MurderMO"
                             if (!Regex.IsMatch(content, "\\\"fileType\\\"\\s*:\\s*\\\"MurderMO\\\"", RegexOptions.IgnoreCase))
                                 continue;
@@ -92,13 +100,15 @@ namespace MurderMayhem
                             var presetName = match.Groups[1].Value;
                             if (string.IsNullOrWhiteSpace(presetName)) continue;
 
-                            // Check for location keys (presence only)
-                            bool hasAllowAnywhere = Regex.IsMatch(content, "\\\"allowAnywhere\\\"\\s*:", RegexOptions.IgnoreCase);
-                            bool hasAllowHome = Regex.IsMatch(content, "\\\"allowHome\\\"\\s*:", RegexOptions.IgnoreCase);
-                            bool hasAllowWork = Regex.IsMatch(content, "\\\"allowWork\\\"\\s*:", RegexOptions.IgnoreCase);
-                            bool hasAllowPublic = Regex.IsMatch(content, "\\\"allowPublic\\\"\\s*:", RegexOptions.IgnoreCase);
-                            bool hasAllowStreets = Regex.IsMatch(content, "\\\"allowStreets\\\"\\s*:", RegexOptions.IgnoreCase);
-                            bool hasAllowDen = Regex.IsMatch(content, "\\\"allowDen\\\"\\s*:", RegexOptions.IgnoreCase);
+                            // Check for location keys, tracking actual boolean-like value (true/false/1/0)
+                            bool hasAllowAnywhere = ExtractBool(content, "allowAnywhere");
+                            bool hasAllowHome = ExtractBool(content, "allowHome");
+                            bool hasAllowWork = ExtractBool(content, "allowWork");
+                            bool hasAllowWorkMayhem = ExtractBool(content, "allowWork-Mayhem");
+                            bool hasAllowPublic = ExtractBool(content, "allowPublic");
+                            bool hasAllowStreets = ExtractBool(content, "allowStreets");
+                            bool hasAllowDen = ExtractBool(content, "allowDen");
+                            int? occupancyLimit = ExtractInt(content, "occupancyLimit");
 
                             results.Add(new CustomCaseInfo(
                                 jsonPath,
@@ -107,9 +117,11 @@ namespace MurderMayhem
                                 hasAllowAnywhere,
                                 hasAllowHome,
                                 hasAllowWork,
+                                hasAllowWorkMayhem,
                                 hasAllowPublic,
                                 hasAllowStreets,
-                                hasAllowDen
+                                hasAllowDen,
+                                occupancyLimit
                             ));
                         }
                         catch (Exception ex)
@@ -141,6 +153,41 @@ namespace MurderMayhem
             }
 
             return results;
+        }
+
+        // Helpers
+        private static string NormalizeContent(string content)
+        {
+            if (string.IsNullOrEmpty(content)) return content ?? string.Empty;
+            // Normalize various Unicode dashes to ASCII '-'
+            content = content
+                .Replace('\u2010', '-') // hyphen
+                .Replace('\u2011', '-') // non-breaking hyphen
+                .Replace('\u2012', '-') // figure dash
+                .Replace('\u2013', '-') // en dash
+                .Replace('\u2014', '-') // em dash
+                .Replace('\u2015', '-'); // horizontal bar
+            return content;
+        }
+
+        private static bool ExtractBool(string content, string key)
+        {
+            if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(key)) return false;
+            var pattern = "\\\"" + Regex.Escape(key) + "\\\"\\s*:\\s*(true|false|1|0)";
+            var m = Regex.Match(content, pattern, RegexOptions.IgnoreCase);
+            if (!m.Success) return false;
+            var val = m.Groups[1].Value;
+            return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase) || val == "1";
+        }
+
+        private static int? ExtractInt(string content, string key)
+        {
+            if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(key)) return null;
+            var pattern = "\\\"" + Regex.Escape(key) + "\\\"\\s*:\\s*(-?\\d+)";
+            var m = Regex.Match(content, pattern, RegexOptions.IgnoreCase);
+            if (!m.Success) return null;
+            if (int.TryParse(m.Groups[1].Value, out var result)) return result;
+            return null;
         }
     }
 }
