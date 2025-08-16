@@ -35,7 +35,7 @@ namespace MurderMayhem
                             // Added: show file path and parsed flag booleans to diagnose selection & parsing
                             Plugin.Log?.LogInfo($"Custom Case FilePath: {caseInfo.FilePath}");
                             Plugin.Log?.LogInfo(
-                                $"Flags => Alley-Mayhem={caseInfo.HasAllowAlleyMayhem}, Work-Mayhem={caseInfo.HasAllowWorkMayhem}, Work={caseInfo.HasAllowWork}, Public={caseInfo.HasAllowPublic}, Streets={caseInfo.HasAllowStreets}, Home={caseInfo.HasAllowHome}, Anywhere={caseInfo.HasAllowAnywhere}, OccupancyLimit={(caseInfo.OccupancyLimit.HasValue ? caseInfo.OccupancyLimit.Value.ToString() : "null")}"
+                                $"Flags => Alley-Mayhem={caseInfo.HasAllowAlleyMayhem}, Backstreets-Mayhem={caseInfo.HasAllowBackstreetsMayhem}, Work-Mayhem={caseInfo.HasAllowWorkMayhem}, Work={caseInfo.HasAllowWork}, Public={caseInfo.HasAllowPublic}, Streets={caseInfo.HasAllowStreets}, Home={caseInfo.HasAllowHome}, Anywhere={caseInfo.HasAllowAnywhere}, OccupancyLimit={(caseInfo.OccupancyLimit.HasValue ? caseInfo.OccupancyLimit.Value.ToString() : "null")}"
                             );
                         }
                     }
@@ -173,6 +173,25 @@ namespace MurderMayhem
                             {
                                 __result = true;
                                 Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing Alley due to allowAlley-Mayhem");
+                            }
+                        }
+                    }
+
+                    // Backstreets support: accept Backstreet preset or StreetController.isBackstreet if custom key is set
+                    if (!__result && caseInfo?.HasAllowBackstreetsMayhem == true)
+                    {
+                        var asAddress = newLoc.thisAsAddress;
+                        var preset = asAddress?.addressPreset?.presetName ?? "(null)";
+                        bool isStreet = newLoc is StreetController;
+                        bool streetIsBackstreet = isStreet && ((StreetController)newLoc).isBackstreet;
+                        var typeName = newLoc.GetType().Name;
+                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowBackstreets-Mayhem true; preset={preset}, type={typeName}, isStreet={isStreet}, streetIsBackstreet={streetIsBackstreet}");
+                        if (string.Equals(preset, "Backstreet", StringComparison.OrdinalIgnoreCase) || streetIsBackstreet)
+                        {
+                            if (MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                            {
+                                __result = true;
+                                Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing Backstreet due to allowBackstreets-Mayhem");
                             }
                         }
                     }
@@ -359,6 +378,26 @@ namespace MurderMayhem
                     if (chosen != null)
                     {
                         Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM alley for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
+                        var ai = m.victim.ai;
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
+                        return;
+                    }
+                }
+
+                // Custom: allowBackstreets-Mayhem -> choose a suitable backstreet
+                if (caseInfo.HasAllowBackstreetsMayhem)
+                {
+                    StreetController chosen = null;
+                    foreach (var s in CityData.Instance.streetDirectory)
+                    {
+                        if (s.isBackstreet && MurderPatchHelpers.IsLocationUsable(m, s, caseInfo) && (chosen == null || s.currentOccupants.Count < chosen.currentOccupants.Count))
+                        {
+                            chosen = s;
+                        }
+                    }
+                    if (chosen != null)
+                    {
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM backstreet for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
                         var ai = m.victim.ai;
                         ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
                         return;
