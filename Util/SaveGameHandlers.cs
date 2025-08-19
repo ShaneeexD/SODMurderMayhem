@@ -21,12 +21,12 @@ namespace MurderMayhem
 
         private void HandleNewGameStarted(object sender, EventArgs e)
         {
-
+            CustomCases = CustomCaseScanner.ScanAllProfilesForCustomCases();
         }
 
         private void HandleGameLoaded(object sender, EventArgs e)
         {
-
+            CustomCases = CustomCaseScanner.ScanAllProfilesForCustomCases();
         }
 
         private void HandleGameBeforeNewGame(object sender, EventArgs e)

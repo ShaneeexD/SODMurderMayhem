@@ -46,6 +46,7 @@ Add these flags to your MurderMO JSON files to enable special location handling:
 | `"allowWork-Mayhem": true` | Allows murders at the victim's workplace, even when crowded (use occupancyLimit to override) |
 | `"allowAlley-Mayhem": true` | Allows murders in alleys |
 | `"allowBackstreets-Mayhem": true` | Allows murders in backstreets |
+| `"allowPark-Mayhem": true` | Allows murders in parks and paths |
 | `"occupancyLimit": 10` | Override the default occupancy limit (use with allowWork-Mayhem) |
 | `"occupancyLimit": -1` | Disable occupancy checks entirely (infinite limit) |
 
@@ -84,6 +85,7 @@ If your custom murder cases aren't working as expected:
 4. Look for specific log entries about location validation:
    - `[Patch] IsValidLocation: allowAlley-Mayhem true; ...`
    - `[Patch] IsValidLocation: allowBackstreets-Mayhem true; ...`
+   - `[Patch] IsValidLocation: allowPark-Mayhem true; ...`
    - `[Patch] IsValidLocation: allowWork-Mayhem true; ...`
    - `[Patch] IsValidLocation: Allowing ANY location due to allowAnywhere-Mayhem`
 

@@ -20,6 +20,7 @@ namespace MurderMayhem
         public bool HasAllowWorkMayhem { get; }
         public bool HasAllowAlleyMayhem { get; }
         public bool HasAllowBackstreetsMayhem { get; }
+        public bool HasAllowParkMayhem { get; }
         public bool HasAllowPublic { get; }
         public bool HasAllowStreets { get; }
         public bool HasAllowDen { get; }
@@ -28,7 +29,7 @@ namespace MurderMayhem
 
         public CustomCaseInfo(string filePath, string presetName, string profileName, 
             bool hasAllowAnywhere, bool hasAllowAnywhereMayhem, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
-            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, int? occupancyLimit)
+            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowParkMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, int? occupancyLimit)
         {
             FilePath = filePath;
             PresetName = presetName;
@@ -40,6 +41,7 @@ namespace MurderMayhem
             HasAllowWorkMayhem = hasAllowWorkMayhem;
             HasAllowAlleyMayhem = hasAllowAlleyMayhem;
             HasAllowBackstreetsMayhem = hasAllowBackstreetsMayhem;
+            HasAllowParkMayhem = hasAllowParkMayhem;
             HasAllowPublic = hasAllowPublic;
             HasAllowStreets = hasAllowStreets;
             HasAllowDen = hasAllowDen;
@@ -61,6 +63,7 @@ namespace MurderMayhem
             if (HasAllowWorkMayhem) keys.Add("Work-Mayhem");
             if (HasAllowAlleyMayhem) keys.Add("Alley-Mayhem");
             if (HasAllowBackstreetsMayhem) keys.Add("Backstreets-Mayhem");
+            if (HasAllowParkMayhem) keys.Add("Park-Mayhem");
             if (HasAllowPublic) keys.Add("Public");
             if (HasAllowStreets) keys.Add("Streets");
             if (HasAllowDen) keys.Add("Den");
@@ -121,6 +124,7 @@ namespace MurderMayhem
                             int? occupancyLimit = ExtractInt(content, "occupancyLimit");
                             bool hasAllowBackstreetsMayhem = ExtractBool(content, "allowBackstreets-Mayhem");
                             bool hasAllowAnywhereMayhem = ExtractBool(content, "allowAnywhere-Mayhem");
+                            bool hasAllowParkMayhem = ExtractBool(content, "allowPark-Mayhem");
 
                             results.Add(new CustomCaseInfo(
                                 jsonPath,
@@ -133,6 +137,7 @@ namespace MurderMayhem
                                 hasAllowWorkMayhem,
                                 hasAllowAlleyMayhem,
                                 hasAllowBackstreetsMayhem,
+                                hasAllowParkMayhem,
                                 hasAllowPublic,
                                 hasAllowStreets,
                                 hasAllowDen,

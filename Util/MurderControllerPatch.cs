@@ -106,6 +106,73 @@ namespace MurderMayhem
                         }
                     }
                 }
+                
+                // If allowPark-Mayhem is active, prefer Park/Path locations
+                {
+                    var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                    if (caseInfo?.HasAllowParkMayhem == true)
+                    {
+                        // Find a suitable park/path location
+                        NewGameLocation chosen = null;
+                        int chosenOcc = int.MaxValue;
+                        
+                        // First try addresses with Park/Path preset
+                        foreach (var loc in CityData.Instance.gameLocationDirectory)
+                        {
+                            if (loc == null) continue;
+                            
+                            // Check if it's a park-like location by preset
+                            var addr = loc.thisAsAddress;
+                            if (addr != null)
+                            {
+                                var preset = addr.addressPreset?.presetName;
+                                if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
+                                    string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
+                                    {
+                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                        if (chosen == null || occ < chosenOcc)
+                                        {
+                                            chosen = loc;
+                                            chosenOcc = occ;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // If no preset match, try by name
+                        if (chosen == null)
+                        {
+                            foreach (var loc in CityData.Instance.gameLocationDirectory)
+                            {
+                                if (loc == null) continue;
+                                
+                                string name = loc.name?.ToLower() ?? "";
+                                if (name.Contains("park") || name.Contains("path"))
+                                {
+                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
+                                    {
+                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                        if (chosen == null || occ < chosenOcc)
+                                        {
+                                            chosen = loc;
+                                            chosenOcc = occ;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (chosen != null)
+                        {
+                            newTargetSite = chosen;
+                            __result = true;
+                            Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSite: Overriding to Park/Path due to allowPark-Mayhem -> {chosen.name}");
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -143,10 +210,86 @@ namespace MurderMayhem
             {
                 string moName = __instance?.mo?.name ?? "(null)";
                 var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
-                if (caseInfo?.HasAllowAnywhereMayhem == true && __instance?.victim?.currentGameLocation != null)
+
+                // If allowAnywhere-Mayhem is active, force the victim's current location (even if vanilla would reject it)
+                if (caseInfo?.HasAllowAnywhereMayhem == true)
                 {
                     newLoc = __instance.victim.currentGameLocation;
                     Plugin.Log?.LogInfo("[Patch] SetMurderLocation.Prefix: Overriding to victim CURRENT location due to allowAnywhere-Mayhem");
+                    return;
+                }
+                
+                // If allowPark-Mayhem is active, force a Park/Path location if the chosen location isn't park-like
+                if (caseInfo?.HasAllowParkMayhem == true)
+                {
+                    // Check if current location is already park-like
+                    var asAddr = newLoc?.thisAsAddress;
+                    string name = newLoc?.name?.ToLower() ?? "";
+                    bool isParkPreset = asAddr != null && (string.Equals(asAddr.addressPreset?.presetName, "Park", StringComparison.OrdinalIgnoreCase) || 
+                                                         string.Equals(asAddr.addressPreset?.presetName, "Path", StringComparison.OrdinalIgnoreCase));
+                    bool isParkName = (name.Contains("park") && !name.Contains("parking")) || name.Contains("path");
+                    
+                    if (!isParkPreset && !isParkName)
+                    {
+                        // Find a suitable park/path location
+                        NewGameLocation chosen = null;
+                        int chosenOcc = int.MaxValue;
+                        
+                        // First try addresses with Park/Path preset
+                        foreach (var loc in CityData.Instance.gameLocationDirectory)
+                        {
+                            if (loc == null) continue;
+                            
+                            // Check if it's a park-like location by preset
+                            var addr = loc.thisAsAddress;
+                            if (addr != null)
+                            {
+                                var preset = addr.addressPreset?.presetName;
+                                if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
+                                    string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
+                                    {
+                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                        if (chosen == null || occ < chosenOcc)
+                                        {
+                                            chosen = loc;
+                                            chosenOcc = occ;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // If no preset match, try by name
+                        if (chosen == null)
+                        {
+                            foreach (var loc in CityData.Instance.gameLocationDirectory)
+                            {
+                                if (loc == null) continue;
+                                
+                                string locName = loc.name?.ToLower() ?? "";
+                                if (locName.Contains("park") || locName.Contains("path"))
+                                {
+                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
+                                    {
+                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                        if (chosen == null || occ < chosenOcc)
+                                        {
+                                            chosen = loc;
+                                            chosenOcc = occ;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (chosen != null)
+                        {
+                            Plugin.Log?.LogInfo($"[Patch] SetMurderLocation.Prefix: Redirecting non-park choice '{newLoc?.name ?? "(null)"}' to Park/Path '{chosen.name}' due to allowPark-Mayhem");
+                            newLoc = chosen;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -216,21 +359,42 @@ namespace MurderMayhem
                         }
                     }
 
-                    // Backstreets support: accept Backstreet preset or StreetController.isBackstreet if custom key is set
+                    // Backstreet support: accept Backstreet preset or streets that are backstreets when custom key is set
                     if (!__result && caseInfo?.HasAllowBackstreetsMayhem == true)
                     {
+                        var asStreet = newLoc as StreetController;
                         var asAddress = newLoc.thisAsAddress;
                         var preset = asAddress?.addressPreset?.presetName ?? "(null)";
-                        bool isStreet = newLoc is StreetController;
-                        bool streetIsBackstreet = isStreet && ((StreetController)newLoc).isBackstreet;
-                        var typeName = newLoc.GetType().Name;
-                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowBackstreets-Mayhem true; preset={preset}, type={typeName}, isStreet={isStreet}, streetIsBackstreet={streetIsBackstreet}");
+                        bool streetIsBackstreet = asStreet?.isBackstreet ?? false;
+                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowBackstreets-Mayhem true; preset={preset}, isBackstreet={streetIsBackstreet}");
                         if (string.Equals(preset, "Backstreet", StringComparison.OrdinalIgnoreCase) || streetIsBackstreet)
                         {
                             if (MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
                             {
                                 __result = true;
                                 Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing Backstreet due to allowBackstreets-Mayhem");
+                            }
+                        }
+                    }
+                    
+                    // Park support: accept Park/Path presets or locations with park/path in name
+                    if (!__result && caseInfo?.HasAllowParkMayhem == true)
+                    {
+                        var asAddress = newLoc.thisAsAddress;
+                        var preset = asAddress?.addressPreset?.presetName ?? "(null)";
+                        string name = newLoc.name?.ToLower() ?? "";
+                        bool isParkPreset = string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
+                                           string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase);
+                        bool isParkName = (name.Contains("park") && !name.Contains("parking")) || name.Contains("path");
+                        
+                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowPark-Mayhem true; preset={preset}, isParkName={isParkName}");
+                        
+                        if (isParkPreset || isParkName)
+                        {
+                            if (MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                            {
+                                __result = true;
+                                Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing Park/Path due to allowPark-Mayhem");
                             }
                         }
                     }
@@ -329,6 +493,7 @@ namespace MurderMayhem
 
             return true;
         }
+
 
         // Determine if the provided location represents the victim's workplace (allow address/company equivalence)
         internal static bool IsVictimWorkplace(MurderController.Murder murder, NewGameLocation newLoc)
@@ -447,6 +612,70 @@ namespace MurderMayhem
                     if (chosen != null)
                     {
                         Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM backstreet for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
+                        var ai = m.victim.ai;
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
+                        return;
+                    }
+                }
+                
+                // Custom: allowPark-Mayhem -> choose a suitable Park/Path location
+                if (caseInfo.HasAllowParkMayhem)
+                {
+                    // First try addresses with Park/Path preset
+                    NewGameLocation chosen = null;
+                    int chosenOcc = int.MaxValue;
+                    
+                    foreach (var loc in CityData.Instance.gameLocationDirectory)
+                    {
+                        if (loc == null) continue;
+                        
+                        // Check if it's a park-like location by preset
+                        var addr = loc.thisAsAddress;
+                        if (addr != null)
+                        {
+                            var preset = addr.addressPreset?.presetName;
+                            if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
+                                string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (MurderPatchHelpers.IsLocationUsable(m, loc, caseInfo))
+                                {
+                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                    if (chosen == null || occ < chosenOcc)
+                                    {
+                                        chosen = loc;
+                                        chosenOcc = occ;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // If no preset match, try by name
+                    if (chosen == null)
+                    {
+                        foreach (var loc in CityData.Instance.gameLocationDirectory)
+                        {
+                            if (loc == null) continue;
+                            
+                            string name = loc.name?.ToLower() ?? "";
+                            if ((name.Contains("park") && !name.Contains("parking")) || name.Contains("path"))
+                            {
+                                if (MurderPatchHelpers.IsLocationUsable(m, loc, caseInfo))
+                                {
+                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                    if (chosen == null || occ < chosenOcc)
+                                    {
+                                        chosen = loc;
+                                        chosenOcc = occ;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (chosen != null)
+                    {
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM park/path for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
                         var ai = m.victim.ai;
                         ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
                         return;
