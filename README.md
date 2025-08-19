@@ -69,6 +69,26 @@ Murder Mayhem uses Harmony patches to modify the game's murder location selectio
 3. If the victim is taking too long to reach a location, the mod can redirect them to appropriate custom locations
 4. Detailed logs are generated to help with debugging
 
+### Dynamic Location Rules
+
+To avoid hard-coding location names, the mod uses a small, reusable "LocationRule" model to match and select locations by:
+
+- Preset names (e.g., Address preset "Park", "Path").
+- Fallback name substrings (e.g., "park", "path").
+- Optional name exclusions (e.g., exclude "parking" when matching "park").
+
+Currently implemented rule(s):
+
+- Park/Path rule, activated by `"allowPark-Mayhem": true`.
+  - Prefers addresses with presets `Park` or `Path`.
+  - Falls back to name matches containing `park`/`path` while excluding `parking`.
+  - Picks the candidate with the lowest occupancy that passes usability checks (e.g., occupancy limit overrides, etc.).
+
+Extending rules (for mod developers):
+
+- New rules can be added following the same pattern (e.g., Alleys, Backstreets) using preset names and/or safe name substrings.
+- Patches call a single helper that finds the best-matching location, which reduces duplication and makes future additions easy.
+
 ## Compatibility
 
 - Works with Shadows of Doubt v1.x

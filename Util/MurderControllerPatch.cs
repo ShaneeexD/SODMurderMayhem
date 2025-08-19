@@ -83,59 +83,7 @@ namespace MurderMayhem
                 // If allowPark-Mayhem is active, immediately set a park location
                 if (caseInfo?.HasAllowParkMayhem == true)
                 {
-                    // Find a suitable park/path location
-                    NewGameLocation chosen = null;
-                    int chosenOcc = int.MaxValue;
-                    
-                    // First try addresses with Park/Path preset
-                    foreach (var loc in CityData.Instance.gameLocationDirectory)
-                    {
-                        if (loc == null) continue;
-                        
-                        // Check if it's a park-like location by preset
-                        var addr = loc.thisAsAddress;
-                        if (addr != null)
-                        {
-                            var preset = addr.addressPreset?.presetName;
-                            if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
-                                string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
-                            {
-                                if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
-                                {
-                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                    if (chosen == null || occ < chosenOcc)
-                                    {
-                                        chosen = loc;
-                                        chosenOcc = occ;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // If no preset match, try by name
-                    if (chosen == null)
-                    {
-                        foreach (var loc in CityData.Instance.gameLocationDirectory)
-                        {
-                            if (loc == null) continue;
-                            
-                            string name = loc.name?.ToLower() ?? "";
-                            if ((name.Contains("park") && !name.Contains("parking")) || name.Contains("path"))
-                            {
-                                if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
-                                {
-                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                    if (chosen == null || occ < chosenOcc)
-                                    {
-                                        chosen = loc;
-                                        chosenOcc = occ;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
+                    var chosen = MurderPatchHelpers.FindBestLocationByRule(__instance, caseInfo, MurderPatchHelpers.ParkRule);
                     if (chosen != null)
                     {
                         // Set the result directly and skip the original method
@@ -196,64 +144,12 @@ namespace MurderMayhem
                     }
                 }
                 
-                // If allowPark-Mayhem is active, prefer Park/Path locations
+                // If allowPark-Mayhem is active, prefer Park/Path locations via dynamic rule
                 {
                     var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
                     if (caseInfo?.HasAllowParkMayhem == true)
                     {
-                        // Find a suitable park/path location
-                        NewGameLocation chosen = null;
-                        int chosenOcc = int.MaxValue;
-                        
-                        // First try addresses with Park/Path preset
-                        foreach (var loc in CityData.Instance.gameLocationDirectory)
-                        {
-                            if (loc == null) continue;
-                            
-                            // Check if it's a park-like location by preset
-                            var addr = loc.thisAsAddress;
-                            if (addr != null)
-                            {
-                                var preset = addr.addressPreset?.presetName;
-                                if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
-                                    string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
-                                    {
-                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                        if (chosen == null || occ < chosenOcc)
-                                        {
-                                            chosen = loc;
-                                            chosenOcc = occ;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // If no preset match, try by name
-                        if (chosen == null)
-                        {
-                            foreach (var loc in CityData.Instance.gameLocationDirectory)
-                            {
-                                if (loc == null) continue;
-                                
-                                string name = loc.name?.ToLower() ?? "";
-                                if (name.Contains("park") || name.Contains("path"))
-                                {
-                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
-                                    {
-                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                        if (chosen == null || occ < chosenOcc)
-                                        {
-                                            chosen = loc;
-                                            chosenOcc = occ;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
+                        var chosen = MurderPatchHelpers.FindBestLocationByRule(__instance, caseInfo, MurderPatchHelpers.ParkRule);
                         if (chosen != null)
                         {
                             newTargetSite = chosen;
@@ -608,6 +504,113 @@ namespace MurderMayhem
 
             return false;
         }
+        
+        // Location rule model and helpers (centralized table for future dynamic presets)
+        internal class LocationRule
+        {
+            public string Key; // e.g., "allowPark-Mayhem"
+            public string[] PresetNames; // Address presets to match (case-insensitive)
+            public string[] NameContains; // Fallback substrings to match on location name (lowercase)
+            public string[] NameExcludes; // Substrings that must NOT be present (lowercase), e.g., exclude "parking" when matching "park"
+            // Future: add fields for street flags, etc.
+        }
+
+        // Rule: Park/Path
+        internal static readonly LocationRule ParkRule = new LocationRule
+        {
+            Key = "allowPark-Mayhem",
+            PresetNames = new[] { "Park", "Path" },
+            NameContains = new[] { "park", "path" },
+            NameExcludes = new[] { "" }
+        };
+
+        // Does a location match a rule by preset or name
+        internal static bool LocationMatchesRule(NewGameLocation loc, LocationRule rule)
+        {
+            if (loc == null || rule == null) return false;
+
+            var addrPreset = loc.thisAsAddress?.addressPreset?.presetName;
+            if (!string.IsNullOrEmpty(addrPreset) && rule.PresetNames != null)
+            {
+                foreach (var p in rule.PresetNames)
+                {
+                    if (string.Equals(addrPreset, p, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+
+            if (rule.NameContains != null && rule.NameContains.Length > 0)
+            {
+                string name = loc.name?.ToLower() ?? string.Empty;
+                // If any exclude substring is present, treat as non-match by name
+                if (rule.NameExcludes != null && rule.NameExcludes.Any(ex => !string.IsNullOrEmpty(ex) && name.Contains(ex)))
+                    return false;
+
+                foreach (var part in rule.NameContains)
+                {
+                    if (!string.IsNullOrEmpty(part) && name.Contains(part))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Find the best-matching location for a rule (prioritize preset matches, then name matches; choose lowest occupancy)
+        internal static NewGameLocation FindBestLocationByRule(MurderController.Murder murder, CustomCaseInfo caseInfo, LocationRule rule)
+        {
+            if (murder == null || rule == null) return null;
+
+            NewGameLocation chosen = null;
+            int chosenOcc = int.MaxValue;
+
+            // Phase 1: preset matches only
+            foreach (var loc in CityData.Instance.gameLocationDirectory)
+            {
+                if (loc == null) continue;
+
+                // Match only by preset
+                var addrPreset = loc.thisAsAddress?.addressPreset?.presetName;
+                bool presetMatch = !string.IsNullOrEmpty(addrPreset) && rule.PresetNames != null &&
+                                   rule.PresetNames.Any(p => string.Equals(addrPreset, p, StringComparison.OrdinalIgnoreCase));
+                if (!presetMatch)
+                    continue;
+
+                if (!IsLocationUsable(murder, loc, caseInfo))
+                    continue;
+
+                int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                if (chosen == null || occ < chosenOcc)
+                {
+                    chosen = loc;
+                    chosenOcc = occ;
+                }
+            }
+
+            if (chosen != null)
+                return chosen;
+
+            // Phase 2: fallback by name substrings
+            foreach (var loc in CityData.Instance.gameLocationDirectory)
+            {
+                if (loc == null) continue;
+
+                if (!LocationMatchesRule(loc, rule))
+                    continue;
+
+                if (!IsLocationUsable(murder, loc, caseInfo))
+                    continue;
+
+                int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                if (chosen == null || occ < chosenOcc)
+                {
+                    chosen = loc;
+                    chosenOcc = occ;
+                }
+            }
+
+            return chosen;
+        }
     }
 
     // Patch to intercept AI goal creation for victims to ensure they go to the right location
@@ -648,58 +651,8 @@ namespace MurderMayhem
                 if (caseInfo?.HasAllowParkMayhem != true)
                     return true;
                     
-                // Find a suitable park/path location
-                NewGameLocation chosen = null;
-                int chosenOcc = int.MaxValue;
-                
-                // First try addresses with Park/Path preset
-                foreach (var loc in CityData.Instance.gameLocationDirectory)
-                {
-                    if (loc == null) continue;
-                    
-                    // Check if it's a park-like location by preset
-                    var addr = loc.thisAsAddress;
-                    if (addr != null)
-                    {
-                        var presetName = addr.addressPreset?.presetName;
-                        if (string.Equals(presetName, "Park", StringComparison.OrdinalIgnoreCase) || 
-                            string.Equals(presetName, "Path", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (MurderPatchHelpers.IsLocationUsable(activeMurder, loc, caseInfo))
-                            {
-                                int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                if (chosen == null || occ < chosenOcc)
-                                {
-                                    chosen = loc;
-                                    chosenOcc = occ;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // If no preset match, try by name
-                if (chosen == null)
-                {
-                    foreach (var loc in CityData.Instance.gameLocationDirectory)
-                    {
-                        if (loc == null) continue;
-                        
-                        string name = loc.name?.ToLower() ?? "";
-                        if (name.Contains("park") || name.Contains("path"))
-                        {
-                            if (MurderPatchHelpers.IsLocationUsable(activeMurder, loc, caseInfo))
-                            {
-                                int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                if (chosen == null || occ < chosenOcc)
-                                {
-                                    chosen = loc;
-                                    chosenOcc = occ;
-                                }
-                            }
-                        }
-                    }
-                }
+                // Find a suitable park/path location via dynamic rule
+                var chosen = MurderPatchHelpers.FindBestLocationByRule(activeMurder, caseInfo, MurderPatchHelpers.ParkRule);
                 
                 // If we found a park location, override the goal
                 if (chosen != null)
@@ -821,61 +774,10 @@ namespace MurderMayhem
                     }
                 }
                 
-                // Custom: allowPark-Mayhem -> choose a suitable Park/Path location
+                // Custom: allowPark-Mayhem -> choose a suitable Park/Path location via dynamic rule
                 if (caseInfo.HasAllowParkMayhem)
                 {
-                    // First try addresses with Park/Path preset
-                    NewGameLocation chosen = null;
-                    int chosenOcc = int.MaxValue;
-                    
-                    foreach (var loc in CityData.Instance.gameLocationDirectory)
-                    {
-                        if (loc == null) continue;
-                        
-                        // Check if it's a park-like location by preset
-                        var addr = loc.thisAsAddress;
-                        if (addr != null)
-                        {
-                            var preset = addr.addressPreset?.presetName;
-                            if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
-                                string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
-                            {
-                                if (MurderPatchHelpers.IsLocationUsable(m, loc, caseInfo))
-                                {
-                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                    if (chosen == null || occ < chosenOcc)
-                                    {
-                                        chosen = loc;
-                                        chosenOcc = occ;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // If no preset match, try by name
-                    if (chosen == null)
-                    {
-                        foreach (var loc in CityData.Instance.gameLocationDirectory)
-                        {
-                            if (loc == null) continue;
-                            
-                            string name = loc.name?.ToLower() ?? "";
-                            if ((name.Contains("park") && !name.Contains("parking")) || name.Contains("path"))
-                            {
-                                if (MurderPatchHelpers.IsLocationUsable(m, loc, caseInfo))
-                                {
-                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                    if (chosen == null || occ < chosenOcc)
-                                    {
-                                        chosen = loc;
-                                        chosenOcc = occ;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
+                    var chosen = MurderPatchHelpers.FindBestLocationByRule(m, caseInfo, MurderPatchHelpers.ParkRule);
                     if (chosen != null)
                     {
                         Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM park/path for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
