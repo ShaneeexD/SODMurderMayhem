@@ -137,7 +137,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy /Y &quot;$(TargetPath)&quot; &quot;$(APPDATA)\r2modmanPlus-local\ShadowsofDoubt\profiles\SOD\BepInEx\plugins\ShaneeexD-MurderMayhem\&quot;" />
+    <Exec Command="xcopy /Y &quot;$(TargetPath)&quot; &quot;$(APPDATA)\r2modmanPlus-local\ShadowsofDoubt\profiles\NewBuild\BepInEx\plugins\ShaneeexD-MurderMayhem\&quot;" />
   </Target>
 
 </Project>

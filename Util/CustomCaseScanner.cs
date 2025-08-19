@@ -14,6 +14,7 @@ namespace MurderMayhem
         
         // Location keys from the JSON file
         public bool HasAllowAnywhere { get; }
+        public bool HasAllowAnywhereMayhem { get; }
         public bool HasAllowHome { get; }
         public bool HasAllowWork { get; }
         public bool HasAllowWorkMayhem { get; }
@@ -26,13 +27,14 @@ namespace MurderMayhem
         public int? OccupancyLimit { get; }
 
         public CustomCaseInfo(string filePath, string presetName, string profileName, 
-            bool hasAllowAnywhere, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
+            bool hasAllowAnywhere, bool hasAllowAnywhereMayhem, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
             bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, int? occupancyLimit)
         {
             FilePath = filePath;
             PresetName = presetName;
             ProfileName = profileName;
             HasAllowAnywhere = hasAllowAnywhere;
+            HasAllowAnywhereMayhem = hasAllowAnywhereMayhem;
             HasAllowHome = hasAllowHome;
             HasAllowWork = hasAllowWork;
             HasAllowWorkMayhem = hasAllowWorkMayhem;
@@ -53,6 +55,7 @@ namespace MurderMayhem
         {
             var keys = new List<string>();
             if (HasAllowAnywhere) keys.Add("Anywhere");
+            if (HasAllowAnywhereMayhem) keys.Add("Anywhere-Mayhem");
             if (HasAllowHome) keys.Add("Home");
             if (HasAllowWork) keys.Add("Work");
             if (HasAllowWorkMayhem) keys.Add("Work-Mayhem");
@@ -117,12 +120,14 @@ namespace MurderMayhem
                             bool hasAllowDen = ExtractBool(content, "allowDen");
                             int? occupancyLimit = ExtractInt(content, "occupancyLimit");
                             bool hasAllowBackstreetsMayhem = ExtractBool(content, "allowBackstreets-Mayhem");
+                            bool hasAllowAnywhereMayhem = ExtractBool(content, "allowAnywhere-Mayhem");
 
                             results.Add(new CustomCaseInfo(
                                 jsonPath,
                                 presetName,
                                 profileName,
                                 hasAllowAnywhere,
+                                hasAllowAnywhereMayhem,
                                 hasAllowHome,
                                 hasAllowWork,
                                 hasAllowWorkMayhem,

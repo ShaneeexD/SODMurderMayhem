@@ -69,3 +69,8 @@ MemoryCaptures/
 *.dmp
 *.mdmp
 *.stackdump
+
+## Other
+
+NOTES.md
+TODO.md

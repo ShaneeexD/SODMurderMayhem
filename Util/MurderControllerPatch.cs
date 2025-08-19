@@ -35,7 +35,7 @@ namespace MurderMayhem
                             // Added: show file path and parsed flag booleans to diagnose selection & parsing
                             Plugin.Log?.LogInfo($"Custom Case FilePath: {caseInfo.FilePath}");
                             Plugin.Log?.LogInfo(
-                                $"Flags => Alley-Mayhem={caseInfo.HasAllowAlleyMayhem}, Backstreets-Mayhem={caseInfo.HasAllowBackstreetsMayhem}, Work-Mayhem={caseInfo.HasAllowWorkMayhem}, Work={caseInfo.HasAllowWork}, Public={caseInfo.HasAllowPublic}, Streets={caseInfo.HasAllowStreets}, Home={caseInfo.HasAllowHome}, Anywhere={caseInfo.HasAllowAnywhere}, OccupancyLimit={(caseInfo.OccupancyLimit.HasValue ? caseInfo.OccupancyLimit.Value.ToString() : "null")}"
+                                $"Flags => Anywhere-Mayhem={caseInfo.HasAllowAnywhereMayhem}, Alley-Mayhem={caseInfo.HasAllowAlleyMayhem}, Backstreets-Mayhem={caseInfo.HasAllowBackstreetsMayhem}, Work-Mayhem={caseInfo.HasAllowWorkMayhem}, Work={caseInfo.HasAllowWork}, Public={caseInfo.HasAllowPublic}, Streets={caseInfo.HasAllowStreets}, Home={caseInfo.HasAllowHome}, Anywhere={caseInfo.HasAllowAnywhere}, OccupancyLimit={(caseInfo.OccupancyLimit.HasValue ? caseInfo.OccupancyLimit.Value.ToString() : "null")}"
                             );
                         }
                     }
@@ -137,6 +137,12 @@ namespace MurderMayhem
                 if (!__result && __instance != null && newLoc != null)
                 {
                     var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                    // Anywhere-Mayhem: remove all restrictions, mirror and extend vanilla allowAnywhere
+                    if (caseInfo?.HasAllowAnywhereMayhem == true)
+                    {
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing ANY location due to allowAnywhere-Mayhem");
+                    }
                     if (caseInfo?.HasAllowWorkMayhem == true)
                     {
                         // Treat victim's workplace as valid, even if base code rejected due to standard allowWork checks
@@ -234,6 +240,12 @@ namespace MurderMayhem
         {
             if (murder == null || loc == null)
                 return false;
+
+            // Anywhere-Mayhem: bypass all subsequent occupancy and preset restrictions
+            if (caseInfo?.HasAllowAnywhereMayhem == true)
+            {
+                return true;
+            }
 
             // Occupancy: allow override when allowWork-Mayhem is active and occupancyLimit present
             int baseLimit = murder.preset.nonHomeMaximumOccupantsTrigger;
