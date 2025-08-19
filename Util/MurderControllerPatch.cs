@@ -81,6 +81,16 @@ namespace MurderMayhem
                 string siteName = newTargetSite != null ? newTargetSite.name : "null";
                 Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSite called. MO={moName}, result={__result}, site={siteName}");
 
+                // If allowAnywhere-Mayhem is active, force the victim's current location as the site
+                var caseInfoAnywhere = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                if (caseInfoAnywhere?.HasAllowAnywhereMayhem == true && __instance?.victim?.currentGameLocation != null)
+                {
+                    newTargetSite = __instance.victim.currentGameLocation;
+                    __result = true;
+                    Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSite: Overriding to victim's CURRENT location due to allowAnywhere-Mayhem");
+                    return;
+                }
+
                 // If base failed to choose a site, and our custom key is present, try the victim's workplace
                 if (!__result && __instance != null && __instance.victim != null)
                 {
@@ -119,6 +129,29 @@ namespace MurderMayhem
             catch (Exception ex)
             {
                 Plugin.Log?.LogError($"Error in SetMurderLocationPatch: {ex.Message}");
+            }
+        }
+    }
+
+    // Prefix to force 'kill right here' behavior when allowAnywhere-Mayhem is active
+    [HarmonyPatch(typeof(MurderController.Murder), "SetMurderLocation")]
+    public class SetMurderLocationPrefixPatch
+    {
+        public static void Prefix(MurderController.Murder __instance, ref NewGameLocation newLoc)
+        {
+            try
+            {
+                string moName = __instance?.mo?.name ?? "(null)";
+                var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                if (caseInfo?.HasAllowAnywhereMayhem == true && __instance?.victim?.currentGameLocation != null)
+                {
+                    newLoc = __instance.victim.currentGameLocation;
+                    Plugin.Log?.LogInfo("[Patch] SetMurderLocation.Prefix: Overriding to victim CURRENT location due to allowAnywhere-Mayhem");
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"Error in SetMurderLocationPrefixPatch: {ex.Message}");
             }
         }
     }
@@ -361,6 +394,10 @@ namespace MurderMayhem
                 string moName = m?.mo?.name ?? "(null)";
                 var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
                 if (caseInfo == null)
+                    return;
+
+                // Anywhere-Mayhem: do not create or alter any movement; base will continue with current location
+                if (caseInfo.HasAllowAnywhereMayhem)
                     return;
 
                 // Custom: allowWork-Mayhem -> send to workplace even if vanilla allowWork is false
