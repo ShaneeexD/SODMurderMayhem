@@ -69,7 +69,96 @@ namespace MurderMayhem
         }
     }
 
-    // Base no-op patches to enable future custom location handling for custom MurderMOs
+    // Early interception patch for TryPickNewVictimSite to force park locations for allowPark-Mayhem
+    [HarmonyPatch(typeof(MurderController.Murder), "TryPickNewVictimSite")]
+    public class TryPickNewVictimSitePrefixPatch
+    {
+        public static bool Prefix(MurderController.Murder __instance, ref bool __result, ref NewGameLocation newTargetSite)
+        {
+            try
+            {
+                string moName = __instance?.mo?.name ?? "(null)";
+                var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                
+                // If allowPark-Mayhem is active, immediately set a park location
+                if (caseInfo?.HasAllowParkMayhem == true)
+                {
+                    // Find a suitable park/path location
+                    NewGameLocation chosen = null;
+                    int chosenOcc = int.MaxValue;
+                    
+                    // First try addresses with Park/Path preset
+                    foreach (var loc in CityData.Instance.gameLocationDirectory)
+                    {
+                        if (loc == null) continue;
+                        
+                        // Check if it's a park-like location by preset
+                        var addr = loc.thisAsAddress;
+                        if (addr != null)
+                        {
+                            var preset = addr.addressPreset?.presetName;
+                            if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
+                                string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
+                                {
+                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                    if (chosen == null || occ < chosenOcc)
+                                    {
+                                        chosen = loc;
+                                        chosenOcc = occ;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // If no preset match, try by name
+                    if (chosen == null)
+                    {
+                        foreach (var loc in CityData.Instance.gameLocationDirectory)
+                        {
+                            if (loc == null) continue;
+                            
+                            string name = loc.name?.ToLower() ?? "";
+                            if ((name.Contains("park") && !name.Contains("parking")) || name.Contains("path"))
+                            {
+                                if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
+                                {
+                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                    if (chosen == null || occ < chosenOcc)
+                                    {
+                                        chosen = loc;
+                                        chosenOcc = occ;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (chosen != null)
+                    {
+                        // Set the result directly and skip the original method
+                        newTargetSite = chosen;
+                        __result = true;
+                        Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSitePrefix: INTERCEPTED and set Park/Path location '{chosen.name}' due to allowPark-Mayhem");
+                        
+                        // Skip the original method
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"Error in TryPickNewVictimSitePrefixPatch: {ex.Message}");
+            }
+            
+            // Continue with the original method
+            return true;
+        }
+    }
+    
+    // Base postfix patch to handle custom location handling for custom MurderMOs
     [HarmonyPatch(typeof(MurderController.Murder), "TryPickNewVictimSite")]
     public class TryPickNewVictimSitePatch
     {
@@ -521,6 +610,120 @@ namespace MurderMayhem
         }
     }
 
+    // Patch to intercept AI goal creation for victims to ensure they go to the right location
+    [HarmonyPatch(typeof(NewAIController), "CreateNewGoal")]
+    public class CreateNewGoalPatch
+    {
+        public static bool Prefix(NewAIController __instance, ref AIGoalPreset newPreset, ref float newTrigerTime, ref float newDuration, ref NewNode newPassedNode, ref Interactable newPassedInteractable, ref NewGameLocation newPassedGameLocation, ref GroupsController.SocialGroup newPassedGroup, ref MurderController.Murder newMurderRef, ref int newPassedVar)
+        {
+            try
+            {
+                // Only intercept toGoGoal goals
+                if (newPreset != RoutineControls.Instance.toGoGoal)
+                    return true;
+                    
+                // Check if this citizen is a victim in an active murder
+                var human = __instance?.human;
+                if (human == null)
+                    return true;
+                    
+                // Find if this citizen is a victim in a murder
+                MurderController.Murder activeMurder = null;
+                if (MurderController.Instance != null)
+                {
+                    var murder = MurderController.Instance.GetCurrentMurder();
+                    if (murder != null && murder.victim == human)
+                    {
+                        activeMurder = murder;
+                    }
+                }
+                
+                // If not a victim, proceed normally
+                if (activeMurder == null)
+                    return true;
+                    
+                // Check if this is a custom case with allowPark-Mayhem
+                string moName = activeMurder?.mo?.name ?? "(null)";
+                var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                if (caseInfo?.HasAllowParkMayhem != true)
+                    return true;
+                    
+                // Find a suitable park/path location
+                NewGameLocation chosen = null;
+                int chosenOcc = int.MaxValue;
+                
+                // First try addresses with Park/Path preset
+                foreach (var loc in CityData.Instance.gameLocationDirectory)
+                {
+                    if (loc == null) continue;
+                    
+                    // Check if it's a park-like location by preset
+                    var addr = loc.thisAsAddress;
+                    if (addr != null)
+                    {
+                        var presetName = addr.addressPreset?.presetName;
+                        if (string.Equals(presetName, "Park", StringComparison.OrdinalIgnoreCase) || 
+                            string.Equals(presetName, "Path", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (MurderPatchHelpers.IsLocationUsable(activeMurder, loc, caseInfo))
+                            {
+                                int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                if (chosen == null || occ < chosenOcc)
+                                {
+                                    chosen = loc;
+                                    chosenOcc = occ;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // If no preset match, try by name
+                if (chosen == null)
+                {
+                    foreach (var loc in CityData.Instance.gameLocationDirectory)
+                    {
+                        if (loc == null) continue;
+                        
+                        string name = loc.name?.ToLower() ?? "";
+                        if (name.Contains("park") || name.Contains("path"))
+                        {
+                            if (MurderPatchHelpers.IsLocationUsable(activeMurder, loc, caseInfo))
+                            {
+                                int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                if (chosen == null || occ < chosenOcc)
+                                {
+                                    chosen = loc;
+                                    chosenOcc = occ;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // If we found a park location, override the goal
+                if (chosen != null)
+                {
+                    Plugin.Log?.LogInfo($"[Patch] CreateNewGoalPatch: Intercepted goal creation for victim {human.GetCitizenName()} and redirecting to park/path '{chosen.name}' due to allowPark-Mayhem");
+                    
+                    // Override the target location
+                    newPassedGameLocation = chosen;
+                    newPassedNode = human.FindSafeTeleport(chosen, false, true);
+                    
+                    // Let the original method continue with our modified parameters
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"Error in CreateNewGoalPatch: {ex.Message}");
+            }
+            
+            // Continue with original method
+            return true;
+        }
+    }
+    
     // Extend victim movement during waitForLocation to consider custom locations (e.g., alleys, workplace via custom flags)
     [HarmonyPatch(typeof(MurderController), "Update")]
     public class UpdatePatch
