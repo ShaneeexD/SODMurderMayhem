@@ -27,6 +27,7 @@ namespace MurderMayhem
         public bool HasAllowDen { get; }
         public bool HasAllowDinerBathroomMayhem { get; }
         public bool HasAllowFathomsYardBasementMayhem { get; }
+        public bool HasAllowFathomsYardRooftopMayhem { get; }
         public bool HasAllowHotelRooftopBarMayhem { get; }
         public bool HasAllowHotelRooftopMayhem { get; }
         public bool HasAllowMixedIndustrialRooftopMayhem { get; }

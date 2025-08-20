@@ -50,7 +50,13 @@ Add these flags to your MurderMO JSON files to enable special location handling:
 | `"allowAlley-Mayhem": true` | Allows murders in alleys |
 | `"allowBackstreets-Mayhem": true` | Allows murders in backstreets |
 | `"allowPark-Mayhem": true` | Allows murders in parks and paths |
-| `"allowHotelBathroom-Mayhem": true` | Allows murders in hotel bathrooms (see Dynamic Rules section) |
+| `"allowHotelBathroom-Mayhem": true` | Allows murders in hotel bathrooms with floor filter for `hotel_basement` |
+| `"allowDinerBathroom-Mayhem": true` | Allows murders in diner bathrooms with floor filter for `dinerfloorbeta` |
+| `"allowFathomsYardBasement-Mayhem": true` | Allows murders in Fathoms Yard basement areas with floor filter for `shantytown_basement` |
+| `"allowFathomsYardRooftop-Mayhem": true` | Allows murders on Fathoms Yard rooftops with floor filter for `shantytown` |
+| `"allowHotelRooftopBar-Mayhem": true` | Allows murders in hotel rooftop bars with floor filter for `hotel_rooftopbar` |
+| `"allowHotelRooftop-Mayhem": true` | Allows murders on hotel rooftops with floor filter for `hotel_rooftopbar` |
+| `"allowMixedIndustrialRooftop-Mayhem": true` | Allows murders on mixed industrial rooftops with floor filter for `mixedindustrial` |
 | `"occupancyLimit": 10` | Override the default occupancy limit (use with allowWork-Mayhem) |
 | `"occupancyLimit": -1` | Disable occupancy checks entirely (infinite limit) |
 
@@ -82,7 +88,7 @@ To avoid hard-coding location names, the mod uses a small, reusable "LocationRul
 - Optional name exclusions (e.g., exclude "parking" when matching "park").
 - Optional floor name filters: include/exclude substrings applied to floor names of rooms belonging to a location.
 
-Currently implemented rules:
+Currently implemented location rules:
 
 - Park/Path rule, activated by `"allowPark-Mayhem": true`.
   - Prefers addresses with presets `Park` or `Path`.
@@ -93,13 +99,45 @@ Currently implemented rules:
 - Hotel Bathroom rule, activated by `"allowHotelBathroom-Mayhem": true`.
   - Prefers addresses with presets `BuildingBathroomMale` or `BuildingBathroomFemale`.
   - Falls back to location names containing `bathroom` or `public bathrooms`.
-  - Applies optional floor-name filter includes for `hotel_basement` to narrow to hotel basement bathrooms.
+  - Applies floor-name filter includes for `hotel_basement` to narrow to hotel basement bathrooms.
   - Tokens are matched case-insensitively and normalized to lowercase internally.
+
+- Diner Bathroom rule, activated by `"allowDinerBathroom-Mayhem": true`.
+  - Prefers addresses with presets `BuildingBathroomMale` or `BuildingBathroomFemale`.
+  - Falls back to location names containing `bathroom` or `public bathrooms`.
+  - Applies floor-name filter includes for `dinerfloorbeta` to narrow to diner bathrooms.
+
+- Fathoms Yard Basement rule, activated by `"allowFathomsYardBasement-Mayhem": true`.
+  - Prefers addresses with preset `FathomsYard`.
+  - Falls back to location names containing `Fathoms yard` or `Fathoms Yard`.
+  - Applies floor-name filter includes for `shantytown_basement`.
+
+- Fathoms Yard Rooftop rule, activated by `"allowFathomsYardRooftop-Mayhem": true`.
+  - Prefers addresses with preset `Rooftop`.
+  - Falls back to location names containing `rooftop` or `Rooftop`.
+  - Applies floor-name filter includes for `shantytown`.
+
+- Hotel Rooftop Bar rule, activated by `"allowHotelRooftopBar-Mayhem": true`.
+  - Prefers addresses with preset `RooftopBar`.
+  - Falls back to location names containing `rooftop bar` or `Rooftop Bar`.
+  - Applies floor-name filter includes for `hotel_rooftopbar`.
+
+- Hotel Rooftop rule, activated by `"allowHotelRooftop-Mayhem": true`.
+  - Prefers addresses with preset `Rooftop`.
+  - Falls back to location names containing `rooftop` or `Rooftop`.
+  - Applies floor-name filter includes for `hotel_rooftopbar`.
+
+- Mixed Industrial Rooftop rule, activated by `"allowMixedIndustrialRooftop-Mayhem": true`.
+  - Prefers addresses with preset `Rooftop`.
+  - Falls back to location names containing `rooftop` or `Rooftop`.
+  - Applies floor-name filter includes for `mixedindustrial`.
 
 Extending rules (for mod developers):
 
-- New rules can be added following the same pattern (e.g., Alleys, Backstreets) using preset names and/or safe name substrings.
-- Patches call into a dynamic rule registry that gathers all active rules for the current case and selects among them in random order. This reduces duplication and makes future additions easy.
+- New rules can be added following the same pattern using preset names and/or safe name substrings.
+- **Important**: Floor name tokens must be lowercase to match properly with the game's floor names.
+- Patches call into a dynamic rule registry that gathers all active rules for the current case and selects among them in random order.
+- See `READ_TO_ADD_MORE_LOCATIONS.md` in the Util folder for quick reference on adding new locations.
 
 ## Compatibility
 
