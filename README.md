@@ -58,7 +58,7 @@ Add these flags to your MurderMO JSON files to enable special location handling:
 | `"allowHotelRooftopBar-Mayhem": true` | Allows murders in hotel rooftop bars with floor filter for `hotel_rooftopbar` |
 | `"allowHotelRooftop-Mayhem": true` | Allows murders on hotel rooftops with floor filter for `hotel_rooftopbar` |
 | `"allowMixedIndustrialRooftop-Mayhem": true` | Allows murders on mixed industrial rooftops with floor filter for `mixedindustrial` |
-| `"occupancyLimit": 10` | Override the default occupancy limit (use with allowWork-Mayhem) |
+| `"occupancyLimit": 10` | Override the default occupancy limit (applies to all location types) |
 | `"occupancyLimit": -1` | Disable occupancy checks entirely (infinite limit) |
 
 These flags work alongside the standard location flags from the base game:

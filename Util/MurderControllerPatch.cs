@@ -367,12 +367,13 @@ namespace MurderMayhem
                 return true;
             }
 
-            // Occupancy: allow override when allowWork-Mayhem is active and occupancyLimit present
+            // Occupancy: apply limit universally if present, regardless of location type
             int baseLimit = murder.preset.nonHomeMaximumOccupantsTrigger;
             int? overrideLimit = null;
-            if (caseInfo?.HasAllowWorkMayhem == true && caseInfo.OccupancyLimit.HasValue)
+            if (caseInfo?.OccupancyLimit.HasValue == true)
             {
                 overrideLimit = caseInfo.OccupancyLimit.Value;
+                Plugin.Log?.LogInfo($"[Patch] IsLocationUsable: Using universal occupancy limit: {overrideLimit.Value}");
             }
 
             int current = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
@@ -382,15 +383,15 @@ namespace MurderMayhem
                 {
                     if (current > overrideLimit.Value)
                     {
-                        Plugin.Log?.LogInfo($"[Patch] IsWorkLocationUsable: Rejected due to occupancy {current} > override {overrideLimit.Value}");
+                        Plugin.Log?.LogInfo($"[Patch] IsLocationUsable: Rejected due to occupancy {current} > limit {overrideLimit.Value}");
                         return false;
                     }
-                    Plugin.Log?.LogInfo($"[Patch] IsWorkLocationUsable: Occupancy OK {current} <= override {overrideLimit.Value}");
+                    Plugin.Log?.LogInfo($"[Patch] IsLocationUsable: Occupancy OK {current} <= limit {overrideLimit.Value}");
                 }
                 else
                 {
                     // -1 means infinite
-                    Plugin.Log?.LogInfo($"[Patch] IsWorkLocationUsable: Occupancy override is infinite (-1), bypassing occupancy check. Current={current}");
+                    Plugin.Log?.LogInfo($"[Patch] IsLocationUsable: Occupancy limit is infinite (-1), bypassing occupancy check. Current={current}");
                 }
             }
             else
@@ -398,7 +399,7 @@ namespace MurderMayhem
                 // Mirror the base overcrowding check
                 if (loc.currentOccupants != null && current > baseLimit)
                 {
-                    Plugin.Log?.LogInfo($"[Patch] IsWorkLocationUsable: Rejected due to occupancy {current} > {baseLimit}");
+                    Plugin.Log?.LogInfo($"[Patch] IsLocationUsable: Rejected due to occupancy {current} > base limit {baseLimit}");
                     return false;
                 }
             }
