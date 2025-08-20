@@ -1,8 +1,8 @@
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace MurderMayhem
@@ -762,7 +762,44 @@ namespace MurderMayhem
                 
                 // Dynamic rules: if any active rules exist, redirect to a matching location
                 string moName = activeMurder?.mo?.name ?? "(null)";
+                
+                // Check if this is a custom case
                 var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                bool isCustomCase = caseInfo != null;
+                
+                // For custom cases, enable trespassing for the GoTo goal
+                if (isCustomCase)
+                {
+                    try
+                    {
+                        // Try to set allowTrespass directly if it's a public property
+                        var allowTrespassProperty = newPreset.GetType().GetProperty("allowTrespass");
+                        if (allowTrespassProperty != null)
+                        {
+                            Plugin.Log?.LogInfo($"[Patch] CreateNewGoalPatch: Enabling trespassing via property for victim in custom case {moName}");
+                            allowTrespassProperty.SetValue(newPreset, true);
+                        }
+                        else
+                        {
+                            // Fall back to field if property doesn't exist
+                            var allowTrespassField = newPreset.GetType().GetField("allowTrespass");
+                            if (allowTrespassField != null)
+                            {
+                                Plugin.Log?.LogInfo($"[Patch] CreateNewGoalPatch: Enabling trespassing via field for victim in custom case {moName}");
+                                allowTrespassField.SetValue(newPreset, true);
+                            }
+                            else
+                            {
+                                Plugin.Log?.LogWarning($"[Patch] CreateNewGoalPatch: Could not find allowTrespass property or field on AIGoalPreset");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log?.LogError($"[Patch] CreateNewGoalPatch: Error setting allowTrespass: {ex.Message}");
+                    }
+                }
+                
                 var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
                 if (rules.Count == 0)
                     return true;
