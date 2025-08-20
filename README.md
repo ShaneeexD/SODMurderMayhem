@@ -25,6 +25,7 @@ The mod works by scanning all installed profiles for custom MurderMO JSON files 
 - **Optional Floor Name Filtering**: Rules may require specific floor names (e.g., hotel lobby vs. upper floors)
 - **Automatic Scanning**: No manual configuration needed - just add your custom MurderMO files
 - **Detailed Logging**: Comprehensive logs for debugging custom cases
+- **Custom Case Objective Label**: When a new custom-case murder is reported, the crime scene objective text is tagged with a simple "[Custom]" suffix.
 
 ## Installation
 
