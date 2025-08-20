@@ -17,6 +17,13 @@ namespace MurderMayhem
 
         public static List<CustomCaseInfo> CustomCases { get; private set; } = new List<CustomCaseInfo>();
 
+        // Public method to update CustomCases
+        public static void UpdateCustomCases()
+        {
+            CustomCases = CustomCaseScanner.ScanAllProfilesForCustomCases();
+            Log?.LogInfo("Custom cases rescanned");
+        }
+
         public override void Load()
         {
             Harmony.PatchAll(Assembly.GetExecutingAssembly());

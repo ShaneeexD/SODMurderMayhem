@@ -25,6 +25,9 @@ namespace MurderMayhem
 
         private void HandleGameLoaded(object sender, EventArgs e)
         {
+            // Rescan custom cases when a game is loaded
+            Plugin.UpdateCustomCases();
+            Plugin.Log?.LogInfo("Custom cases rescanned after game load");
         }
 
         private void HandleGameBeforeNewGame(object sender, EventArgs e)

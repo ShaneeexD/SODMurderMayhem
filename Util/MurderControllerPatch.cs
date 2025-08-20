@@ -620,6 +620,10 @@ namespace MurderMayhem
             if (caseInfo.HasAllowHotelBathroomMayhem) rules.Add(HotelBathroomRule);
             if (caseInfo.HasAllowDinerBathroomMayhem) rules.Add(DinerBathroomRule);
             if (caseInfo.HasAllowFathomsYardBasementMayhem) rules.Add(FathomsYardBasementRule);
+            if (caseInfo.HasAllowFathomsYardRooftopMayhem) rules.Add(FathomsYardRooftopRule);
+            if (caseInfo.HasAllowHotelRooftopBarMayhem) rules.Add(HotelRooftopBarRule);
+            if (caseInfo.HasAllowHotelRooftopMayhem) rules.Add(HotelRooftopRule);
+            if (caseInfo.HasAllowMixedIndustrialRooftopMayhem) rules.Add(MixedIndustrialRooftopRule);
             return rules;
         }
 
