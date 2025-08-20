@@ -138,76 +138,58 @@ namespace MurderMayhem
                 return string.Empty;
 
             string locationName = location.name;
+            Plugin.Log?.LogInfo($"[Patch] GetEnhancedLocationName: location={locationName}");
             
-            // Check if this is a special location type that needs context
-            bool isSpecialLocation = false;
-            string locationType = string.Empty;
+            // Always try to get the building name for any location
+            string parentName = GetParentLocationName(location);
             
-            // Check location preset types that might need parent context
-            var asAddress = location.thisAsAddress;
-            if (asAddress?.addressPreset != null)
+            if (!string.IsNullOrEmpty(parentName))
             {
-                string preset = asAddress.addressPreset.presetName?.ToLowerInvariant() ?? string.Empty;
-                
-                // These location types typically need parent context
-                if (preset == "bathroom" || preset == "buildingbathroommale" || preset == "buildingbathroomfemale" || 
-                    preset == "path" || preset == "park" || preset == "alley" || preset == "backstreet")
-                {
-                    isSpecialLocation = true;
-                    
-                    // Normalize bathroom types
-                    if (preset == "buildingbathroommale" || preset == "buildingbathroomfemale")
-                        locationType = "bathroom";
-                    else
-                        locationType = preset;
-                }
-                
-                // Log for debugging
-                Plugin.Log?.LogInfo($"[Patch] GetEnhancedLocationName: location={location.name}, preset={preset}, isSpecial={isSpecialLocation}");
+                Plugin.Log?.LogInfo($"[Patch] GetEnhancedLocationName: Found building name: {parentName}");
+                return $"{parentName} - {locationName}";
             }
-            
-            // If it's a special location, try to get parent context
-            if (isSpecialLocation)
+            else
             {
-                // Try to get parent location name
-                string parentName = GetParentLocationName(location);
-                
-                if (!string.IsNullOrEmpty(parentName))
-                {
-                    // Format: "Parent Location - Specific Area [Custom]"
-                    // Capitalize the location type for better readability
-                    string capitalizedType = char.ToUpper(locationType[0]) + locationType.Substring(1);
-                    return $"{parentName} - {capitalizedType} [Custom]";
-                }
+                Plugin.Log?.LogInfo($"[Patch] GetEnhancedLocationName: No building name found, using original location name");
             }
             
             // Default to original name if we couldn't enhance it
-            return locationName + " [Custom]";
+            return locationName;
         }
         
-        // Helper to find parent location name
+        // Helper to find parent location name - simplified to only use building name
         private static string GetParentLocationName(NewGameLocation location)
         {
-            try
+            if (location == null)
             {
-                // Try to get parent building/business name
-                if (location.building != null && !string.IsNullOrEmpty(location.building.name))
-                {
-                    return location.building.name;
-                }
+                Plugin.Log?.LogInfo("[Patch] GetParentLocationName: Location is null");
+                return string.Empty;
+            }
                 
-                // Try to get district name as fallback
-                if (location.district != null && !string.IsNullOrEmpty(location.district.name))
+            Plugin.Log?.LogInfo($"[Patch] GetParentLocationName: Looking for parent of {location.name}");
+            
+            // Only use the building name
+            var asAddress = location.thisAsAddress;
+            if (asAddress?.building != null)
+            {
+                // Log the building name for debugging
+                Plugin.Log?.LogInfo($"[Patch] GetParentLocationName: Building info - Name: {asAddress.building.name ?? "null"}");
+                
+                if (!string.IsNullOrEmpty(asAddress.building.name))
                 {
-                    return location.district.name;
+                    Plugin.Log?.LogInfo($"[Patch] GetParentLocationName: Using building name: {asAddress.building.name}");
+                    return asAddress.building.name;
                 }
             }
-            catch (System.Exception ex)
+            else
             {
-                Plugin.Log?.LogWarning($"Error getting parent location name: {ex.Message}");
+                Plugin.Log?.LogInfo("[Patch] GetParentLocationName: No building information found");
             }
             
+            Plugin.Log?.LogInfo("[Patch] GetParentLocationName: No parent location found");
             return string.Empty;
         }
+        
+        // Removed unused GetParentLocationFromFloor method since we're now only using building names
     }
 }
