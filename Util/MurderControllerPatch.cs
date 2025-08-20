@@ -79,17 +79,17 @@ namespace MurderMayhem
             {
                 string moName = __instance?.mo?.name ?? "(null)";
                 var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
-                
-                // If allowPark-Mayhem is active, immediately set a park location
-                if (caseInfo?.HasAllowParkMayhem == true)
+                var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
+                if (rules.Count > 0)
                 {
-                    var chosen = MurderPatchHelpers.FindBestLocationByRule(__instance, caseInfo, MurderPatchHelpers.ParkRule);
+                    var chosen = MurderPatchHelpers.FindBestLocationByRulesRandom(__instance, caseInfo, rules);
                     if (chosen != null)
                     {
                         // Set the result directly and skip the original method
                         newTargetSite = chosen;
                         __result = true;
-                        Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSitePrefix: INTERCEPTED and set Park/Path location '{chosen.name}' due to allowPark-Mayhem");
+                        var matched = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules)?.Key ?? "dynamic-rule";
+                        Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSitePrefix: INTERCEPTED and set '{chosen.name}' due to {matched}");
                         
                         // Skip the original method
                         return false;
@@ -118,9 +118,9 @@ namespace MurderMayhem
                 string siteName = newTargetSite != null ? newTargetSite.name : "null";
                 Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSite called. MO={moName}, result={__result}, site={siteName}");
 
+                var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
                 // If allowAnywhere-Mayhem is active, force the victim's current location as the site
-                var caseInfoAnywhere = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
-                if (caseInfoAnywhere?.HasAllowAnywhereMayhem == true && __instance?.victim?.currentGameLocation != null)
+                if (caseInfo?.HasAllowAnywhereMayhem == true && __instance?.victim?.currentGameLocation != null)
                 {
                     newTargetSite = __instance.victim.currentGameLocation;
                     __result = true;
@@ -131,7 +131,6 @@ namespace MurderMayhem
                 // If base failed to choose a site, and our custom key is present, try the victim's workplace
                 if (!__result && __instance != null && __instance.victim != null)
                 {
-                    var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
                     if (caseInfo?.HasAllowWorkMayhem == true)
                     {
                         var workplace = __instance.victim.job?.employer?.placeOfBusiness;
@@ -143,18 +142,20 @@ namespace MurderMayhem
                         }
                     }
                 }
-                
-                // If allowPark-Mayhem is active, prefer Park/Path locations via dynamic rule
+
+                // Dynamic rule selection: if any active rules, prefer a matching location (random rule order)
+                var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
+                if (rules.Count > 0)
                 {
-                    var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
-                    if (caseInfo?.HasAllowParkMayhem == true)
+                    if (!MurderPatchHelpers.LocationMatchesAnyRule(newTargetSite, rules))
                     {
-                        var chosen = MurderPatchHelpers.FindBestLocationByRule(__instance, caseInfo, MurderPatchHelpers.ParkRule);
+                        var chosen = MurderPatchHelpers.FindBestLocationByRulesRandom(__instance, caseInfo, rules);
                         if (chosen != null)
                         {
                             newTargetSite = chosen;
                             __result = true;
-                            Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSite: Overriding to Park/Path due to allowPark-Mayhem -> {chosen.name}");
+                            var matched = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules)?.Key ?? "dynamic-rule";
+                            Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSite: Overriding to '{chosen.name}' due to {matched}");
                         }
                     }
                 }
@@ -204,74 +205,17 @@ namespace MurderMayhem
                     return;
                 }
                 
-                // If allowPark-Mayhem is active, force a Park/Path location if the chosen location isn't park-like
-                if (caseInfo?.HasAllowParkMayhem == true)
+                // If any active rules exist and current location doesn't match, redirect dynamically
+                var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
+                if (rules.Count > 0)
                 {
-                    // Check if current location is already park-like
-                    var asAddr = newLoc?.thisAsAddress;
-                    string name = newLoc?.name?.ToLower() ?? "";
-                    bool isParkPreset = asAddr != null && (string.Equals(asAddr.addressPreset?.presetName, "Park", StringComparison.OrdinalIgnoreCase) || 
-                                                         string.Equals(asAddr.addressPreset?.presetName, "Path", StringComparison.OrdinalIgnoreCase));
-                    bool isParkName = (name.Contains("park") && !name.Contains("parking")) || name.Contains("path");
-                    
-                    if (!isParkPreset && !isParkName)
+                    if (!MurderPatchHelpers.LocationMatchesAnyRule(newLoc, rules))
                     {
-                        // Find a suitable park/path location
-                        NewGameLocation chosen = null;
-                        int chosenOcc = int.MaxValue;
-                        
-                        // First try addresses with Park/Path preset
-                        foreach (var loc in CityData.Instance.gameLocationDirectory)
-                        {
-                            if (loc == null) continue;
-                            
-                            // Check if it's a park-like location by preset
-                            var addr = loc.thisAsAddress;
-                            if (addr != null)
-                            {
-                                var preset = addr.addressPreset?.presetName;
-                                if (string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
-                                    string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
-                                    {
-                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                        if (chosen == null || occ < chosenOcc)
-                                        {
-                                            chosen = loc;
-                                            chosenOcc = occ;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // If no preset match, try by name
-                        if (chosen == null)
-                        {
-                            foreach (var loc in CityData.Instance.gameLocationDirectory)
-                            {
-                                if (loc == null) continue;
-                                
-                                string locName = loc.name?.ToLower() ?? "";
-                                if (locName.Contains("park") || locName.Contains("path"))
-                                {
-                                    if (MurderPatchHelpers.IsLocationUsable(__instance, loc, caseInfo))
-                                    {
-                                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
-                                        if (chosen == null || occ < chosenOcc)
-                                        {
-                                            chosen = loc;
-                                            chosenOcc = occ;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
+                        var chosen = MurderPatchHelpers.FindBestLocationByRulesRandom(__instance, caseInfo, rules);
                         if (chosen != null)
                         {
-                            Plugin.Log?.LogInfo($"[Patch] SetMurderLocation.Prefix: Redirecting non-park choice '{newLoc?.name ?? "(null)"}' to Park/Path '{chosen.name}' due to allowPark-Mayhem");
+                            var matched = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules)?.Key ?? "dynamic-rule";
+                            Plugin.Log?.LogInfo($"[Patch] SetMurderLocation.Prefix: Redirecting '{newLoc?.name ?? "(null)"}' to '{chosen.name}' due to {matched}");
                             newLoc = chosen;
                         }
                     }
@@ -362,24 +306,17 @@ namespace MurderMayhem
                         }
                     }
                     
-                    // Park support: accept Park/Path presets or locations with park/path in name
-                    if (!__result && caseInfo?.HasAllowParkMayhem == true)
+                    // Dynamic rules: accept any location that matches an active rule and passes usability checks
+                    if (!__result)
                     {
-                        var asAddress = newLoc.thisAsAddress;
-                        var preset = asAddress?.addressPreset?.presetName ?? "(null)";
-                        string name = newLoc.name?.ToLower() ?? "";
-                        bool isParkPreset = string.Equals(preset, "Park", StringComparison.OrdinalIgnoreCase) || 
-                                           string.Equals(preset, "Path", StringComparison.OrdinalIgnoreCase);
-                        bool isParkName = (name.Contains("park") && !name.Contains("parking")) || name.Contains("path");
-                        
-                        Plugin.Log?.LogInfo($"[Patch] IsValidLocation: allowPark-Mayhem true; preset={preset}, isParkName={isParkName}");
-                        
-                        if (isParkPreset || isParkName)
+                        var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
+                        if (rules.Count > 0 && MurderPatchHelpers.LocationMatchesAnyRule(newLoc, rules))
                         {
                             if (MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
                             {
+                                var matched = MurderPatchHelpers.GetMatchingRuleForLocation(newLoc, rules)?.Key ?? "dynamic-rule";
                                 __result = true;
-                                Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing Park/Path due to allowPark-Mayhem");
+                                Plugin.Log?.LogInfo($"[Patch] IsValidLocation: Allowing location due to {matched}");
                             }
                         }
                     }
@@ -395,6 +332,7 @@ namespace MurderMayhem
     // Helpers shared by patches
     internal static class MurderPatchHelpers
     {
+        private static readonly System.Random Rng = new System.Random();
         internal static CustomCaseInfo GetCustomCaseInfoForMO(string moName)
         {
             if (string.IsNullOrWhiteSpace(moName) || Plugin.CustomCases == null || Plugin.CustomCases.Count == 0)
@@ -512,6 +450,8 @@ namespace MurderMayhem
             public string[] PresetNames; // Address presets to match (case-insensitive)
             public string[] NameContains; // Fallback substrings to match on location name (lowercase)
             public string[] NameExcludes; // Substrings that must NOT be present (lowercase), e.g., exclude "parking" when matching "park"
+            public string[] FloorNameContains; // Optional substrings to match on floor name(s) within the address (lowercase)
+            public string[] FloorNameExcludes; // Optional substrings to exclude on floor name(s) (lowercase)
             // Future: add fields for street flags, etc.
         }
 
@@ -521,10 +461,119 @@ namespace MurderMayhem
             Key = "allowPark-Mayhem",
             PresetNames = new[] { "Park", "Path" },
             NameContains = new[] { "park", "path" },
-            NameExcludes = new[] { "" }
+            NameExcludes = Array.Empty<string>()
         };
 
-        // Does a location match a rule by preset or name
+        internal static readonly LocationRule HotelBathroomRule = new LocationRule
+        {
+            Key = "allowHotelBathroom-Mayhem",
+            PresetNames = new[] { "BuildingBathroomMale", "BuildingBathroomFemale" },
+            NameContains = new[] { "public bathrooms", "bathroom" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "hotel_basement" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        internal static readonly LocationRule DinerBathroomRule = new LocationRule
+        {
+            Key = "allowDinerBathroom-Mayhem",
+            PresetNames = new[] { "BuildingBathroomMale", "BuildingBathroomFemale" },
+            NameContains = new[] { "public bathrooms", "bathroom" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "dinerfloorbeta" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        internal static readonly LocationRule FathomsYardBasementRule = new LocationRule
+        {
+            Key = "allowFathomsYardBasement-Mayhem",
+            PresetNames = new[] { "FathomsYard" },
+            NameContains = new[] { "Fathoms yard", "Fathoms Yard" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "shantytown_basement" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        internal static readonly LocationRule FathomsYardRooftopRule = new LocationRule
+        {
+            Key = "allowFathomsYardRooftop-Mayhem",
+            PresetNames = new[] { "Rooftop" },
+            NameContains = new[] { "rooftop", "Rooftop" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "shantytown" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        internal static readonly LocationRule HotelRooftopBarRule = new LocationRule
+        {
+            Key = "allowHotelRooftopBar-Mayhem",
+            PresetNames = new[] { "RooftopBar" },
+            NameContains = new[] { "rooftop bar", "Rooftop Bar" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "hotel_rooftopbar" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        
+        internal static readonly LocationRule HotelRooftopRule = new LocationRule
+        {
+            Key = "allowHotelRooftop-Mayhem",
+            PresetNames = new[] { "Rooftop" },
+            NameContains = new[] { "rooftop", "Rooftop" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "hotel_rooftopbar" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        internal static readonly LocationRule MixedIndustrialRooftopRule = new LocationRule
+        {
+            Key = "allowMixedIndustrialRooftop-Mayhem",
+            PresetNames = new[] { "Rooftop" },
+            NameContains = new[] { "rooftop", "Rooftop" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "mixedindustrial" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        // Helper: does any floor name on this location's address match the rule's floor constraints
+        internal static bool LocationFloorsMatch(NewGameLocation loc, LocationRule rule)
+        {
+            if (rule == null)
+                return false;
+
+            // No floor constraints specified => treat as match
+            if (rule.FloorNameContains == null || rule.FloorNameContains.Length == 0)
+                return true;
+
+            var addr = loc?.thisAsAddress;
+            var rooms = addr?.rooms;
+            if (rooms == null || rooms.Count == 0)
+                return false;
+
+            foreach (var room in rooms)
+            {
+                string floorName = room?.floor?.name;
+                if (string.IsNullOrEmpty(floorName))
+                    continue;
+
+                string floorLower = floorName.ToLower();
+
+                // Exclusions: if any exclude term is contained, skip this floor name
+                if (rule.FloorNameExcludes != null && rule.FloorNameExcludes.Any(ex => !string.IsNullOrEmpty(ex) && floorLower.Contains(ex)))
+                    continue;
+
+                // Inclusions: if any include term is contained, we match
+                foreach (var part in rule.FloorNameContains)
+                {
+                    if (!string.IsNullOrEmpty(part) && floorLower.Contains(part))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Does a location match a rule by preset or name (with optional floor constraints)
         internal static bool LocationMatchesRule(NewGameLocation loc, LocationRule rule)
         {
             if (loc == null || rule == null) return false;
@@ -535,7 +584,10 @@ namespace MurderMayhem
                 foreach (var p in rule.PresetNames)
                 {
                     if (string.Equals(addrPreset, p, StringComparison.OrdinalIgnoreCase))
-                        return true;
+                    {
+                        // If floor constraints are provided, enforce them
+                        return LocationFloorsMatch(loc, rule);
+                    }
                 }
             }
 
@@ -549,11 +601,65 @@ namespace MurderMayhem
                 foreach (var part in rule.NameContains)
                 {
                     if (!string.IsNullOrEmpty(part) && name.Contains(part))
-                        return true;
+                    {
+                        // If floor constraints are provided, enforce them
+                        return LocationFloorsMatch(loc, rule);
+                    }
                 }
             }
 
             return false;
+        }
+
+        // Return active rules for a given custom case info
+        internal static List<LocationRule> GetActiveRules(CustomCaseInfo caseInfo)
+        {
+            var rules = new List<LocationRule>();
+            if (caseInfo == null) return rules;
+            if (caseInfo.HasAllowParkMayhem) rules.Add(ParkRule);
+            if (caseInfo.HasAllowHotelBathroomMayhem) rules.Add(HotelBathroomRule);
+            if (caseInfo.HasAllowDinerBathroomMayhem) rules.Add(DinerBathroomRule);
+            if (caseInfo.HasAllowFathomsYardBasementMayhem) rules.Add(FathomsYardBasementRule);
+            return rules;
+        }
+
+        // Whether a location matches any of the provided rules
+        internal static bool LocationMatchesAnyRule(NewGameLocation loc, IEnumerable<LocationRule> rules)
+        {
+            if (loc == null || rules == null) return false;
+            foreach (var r in rules)
+            {
+                if (LocationMatchesRule(loc, r)) return true;
+            }
+            return false;
+        }
+
+        // Try to identify which rule matched a given location
+        internal static LocationRule GetMatchingRuleForLocation(NewGameLocation loc, IEnumerable<LocationRule> rules)
+        {
+            if (loc == null || rules == null) return null;
+            foreach (var r in rules)
+            {
+                if (LocationMatchesRule(loc, r)) return r;
+            }
+            return null;
+        }
+
+        // Find a best-matching location by iterating active rules in random order
+        internal static NewGameLocation FindBestLocationByRulesRandom(MurderController.Murder murder, CustomCaseInfo caseInfo, IEnumerable<LocationRule> rules)
+        {
+            if (murder == null || rules == null) return null;
+            var ruleList = rules.Where(r => r != null).ToList();
+            if (ruleList.Count == 0) return null;
+
+            // Shuffle rules using a local RNG to add variety across murders
+            var shuffled = ruleList.OrderBy(_ => Rng.NextDouble()).ToList();
+            foreach (var r in shuffled)
+            {
+                var loc = FindBestLocationByRule(murder, caseInfo, r);
+                if (loc != null) return loc;
+            }
+            return null;
         }
 
         // Find the best-matching location for a rule (prioritize preset matches, then name matches; choose lowest occupancy)
@@ -564,7 +670,7 @@ namespace MurderMayhem
             NewGameLocation chosen = null;
             int chosenOcc = int.MaxValue;
 
-            // Phase 1: preset matches only
+            // Phase 1: preset matches (with optional floor constraint)
             foreach (var loc in CityData.Instance.gameLocationDirectory)
             {
                 if (loc == null) continue;
@@ -574,6 +680,10 @@ namespace MurderMayhem
                 bool presetMatch = !string.IsNullOrEmpty(addrPreset) && rule.PresetNames != null &&
                                    rule.PresetNames.Any(p => string.Equals(addrPreset, p, StringComparison.OrdinalIgnoreCase));
                 if (!presetMatch)
+                    continue;
+
+                // Enforce floor constraint if specified
+                if (!LocationFloorsMatch(loc, rule))
                     continue;
 
                 if (!IsLocationUsable(murder, loc, caseInfo))
@@ -644,20 +754,19 @@ namespace MurderMayhem
                 // If not a victim, proceed normally
                 if (activeMurder == null)
                     return true;
-                    
-                // Check if this is a custom case with allowPark-Mayhem
+                
+                // Dynamic rules: if any active rules exist, redirect to a matching location
                 string moName = activeMurder?.mo?.name ?? "(null)";
                 var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
-                if (caseInfo?.HasAllowParkMayhem != true)
+                var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
+                if (rules.Count == 0)
                     return true;
-                    
-                // Find a suitable park/path location via dynamic rule
-                var chosen = MurderPatchHelpers.FindBestLocationByRule(activeMurder, caseInfo, MurderPatchHelpers.ParkRule);
-                
-                // If we found a park location, override the goal
+
+                var chosen = MurderPatchHelpers.FindBestLocationByRulesRandom(activeMurder, caseInfo, rules);
                 if (chosen != null)
                 {
-                    Plugin.Log?.LogInfo($"[Patch] CreateNewGoalPatch: Intercepted goal creation for victim {human.GetCitizenName()} and redirecting to park/path '{chosen.name}' due to allowPark-Mayhem");
+                    var matched = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules)?.Key ?? "dynamic-rule";
+                    Plugin.Log?.LogInfo($"[Patch] CreateNewGoalPatch: Intercepted toGoGoal for victim {human.GetCitizenName()} -> '{chosen.name}' due to {matched}");
                     
                     // Override the target location
                     newPassedGameLocation = chosen;
@@ -774,13 +883,15 @@ namespace MurderMayhem
                     }
                 }
                 
-                // Custom: allowPark-Mayhem -> choose a suitable Park/Path location via dynamic rule
-                if (caseInfo.HasAllowParkMayhem)
+                // Dynamic rules: if any active rules exist, choose one at random order and send victim there
+                var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
+                if (rules.Count > 0)
                 {
-                    var chosen = MurderPatchHelpers.FindBestLocationByRule(m, caseInfo, MurderPatchHelpers.ParkRule);
+                    var chosen = MurderPatchHelpers.FindBestLocationByRulesRandom(m, caseInfo, rules);
                     if (chosen != null)
                     {
-                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM park/path for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
+                        var matched = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules)?.Key ?? "dynamic-rule";
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM ({matched}) for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
                         var ai = m.victim.ai;
                         ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
                         return;

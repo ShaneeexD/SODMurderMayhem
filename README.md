@@ -20,6 +20,9 @@ The mod works by scanning all installed profiles for custom MurderMO JSON files 
 - **Workplace Murders**: Allow murders at victim workplaces even when crowded
 - **Street Murders**: Enable murders in alleys and backstreets
 - **Occupancy Control**: Set custom occupancy limits or disable them entirely
+- **Dynamic Location Rules**: Centralized matching by presets and safe name substrings
+- **Multiple Active Rules + Randomization**: When several rules are active, the mod selects among them in random order to avoid repetition
+- **Optional Floor Name Filtering**: Rules may require specific floor names (e.g., hotel lobby vs. upper floors)
 - **Automatic Scanning**: No manual configuration needed - just add your custom MurderMO files
 - **Detailed Logging**: Comprehensive logs for debugging custom cases
 
@@ -47,6 +50,7 @@ Add these flags to your MurderMO JSON files to enable special location handling:
 | `"allowAlley-Mayhem": true` | Allows murders in alleys |
 | `"allowBackstreets-Mayhem": true` | Allows murders in backstreets |
 | `"allowPark-Mayhem": true` | Allows murders in parks and paths |
+| `"allowHotelBathroom-Mayhem": true` | Allows murders in hotel bathrooms (see Dynamic Rules section) |
 | `"occupancyLimit": 10` | Override the default occupancy limit (use with allowWork-Mayhem) |
 | `"occupancyLimit": -1` | Disable occupancy checks entirely (infinite limit) |
 
@@ -76,18 +80,26 @@ To avoid hard-coding location names, the mod uses a small, reusable "LocationRul
 - Preset names (e.g., Address preset "Park", "Path").
 - Fallback name substrings (e.g., "park", "path").
 - Optional name exclusions (e.g., exclude "parking" when matching "park").
+- Optional floor name filters: include/exclude substrings applied to floor names of rooms belonging to a location.
 
-Currently implemented rule(s):
+Currently implemented rules:
 
 - Park/Path rule, activated by `"allowPark-Mayhem": true`.
   - Prefers addresses with presets `Park` or `Path`.
   - Falls back to name matches containing `park`/`path` while excluding `parking`.
   - Picks the candidate with the lowest occupancy that passes usability checks (e.g., occupancy limit overrides, etc.).
+  - Note: The Park/Path rule does not require any floor names by default; floor constraints are supported by the system and can be used in future rules.
+
+- Hotel Bathroom rule, activated by `"allowHotelBathroom-Mayhem": true`.
+  - Prefers addresses with presets `BuildingBathroomMale` or `BuildingBathroomFemale`.
+  - Falls back to location names containing `bathroom` or `public bathrooms`.
+  - Applies optional floor-name filter includes for `hotel_basement` to narrow to hotel basement bathrooms.
+  - Tokens are matched case-insensitively and normalized to lowercase internally.
 
 Extending rules (for mod developers):
 
 - New rules can be added following the same pattern (e.g., Alleys, Backstreets) using preset names and/or safe name substrings.
-- Patches call a single helper that finds the best-matching location, which reduces duplication and makes future additions easy.
+- Patches call into a dynamic rule registry that gathers all active rules for the current case and selects among them in random order. This reduces duplication and makes future additions easy.
 
 ## Compatibility
 
