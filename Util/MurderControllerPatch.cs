@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace MurderMayhem
@@ -533,6 +534,16 @@ namespace MurderMayhem
             NameContains = new[] { "rooftop", "Rooftop" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "mixedindustrial" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        internal static readonly LocationRule TestRule = new LocationRule
+        {
+            Key = "allowTest-Mayhem",
+            PresetNames = new[] { "BusinessBackroom" },
+            NameContains = new[] { "cafe backroom", "Cafe Backroom" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "dinerfloorbeta" },
             FloorNameExcludes = Array.Empty<string>()
         };
 

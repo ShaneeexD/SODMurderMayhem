@@ -31,12 +31,13 @@ namespace MurderMayhem
         public bool HasAllowHotelRooftopBarMayhem { get; }
         public bool HasAllowHotelRooftopMayhem { get; }
         public bool HasAllowMixedIndustrialRooftopMayhem { get; }
+        public bool HasAllowTestMayhem { get; }
         // Optional overrides
         public int? OccupancyLimit { get; }
 
         public CustomCaseInfo(string filePath, string presetName, string profileName, 
             bool hasAllowAnywhere, bool hasAllowAnywhereMayhem, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
-            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowParkMayhem, bool hasAllowHotelBathroomMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, bool hasAllowDinerBathroomMayhem, bool hasAllowFathomsYardBasementMayhem, bool hasAllowFathomsYardRooftopMayhem, bool hasAllowHotelRooftopBarMayhem, bool hasAllowHotelRooftopMayhem, bool hasAllowMixedIndustrialRooftopMayhem, int? occupancyLimit)
+            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowParkMayhem, bool hasAllowHotelBathroomMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, bool hasAllowDinerBathroomMayhem, bool hasAllowFathomsYardBasementMayhem, bool hasAllowFathomsYardRooftopMayhem, bool hasAllowHotelRooftopBarMayhem, bool hasAllowHotelRooftopMayhem, bool hasAllowMixedIndustrialRooftopMayhem, bool hasAllowTestMayhem, int? occupancyLimit)
         {
             FilePath = filePath;
             PresetName = presetName;
@@ -59,6 +60,7 @@ namespace MurderMayhem
             HasAllowHotelRooftopBarMayhem = hasAllowHotelRooftopBarMayhem;
             HasAllowHotelRooftopMayhem = hasAllowHotelRooftopMayhem;
             HasAllowMixedIndustrialRooftopMayhem = hasAllowMixedIndustrialRooftopMayhem;
+            HasAllowTestMayhem = hasAllowTestMayhem;
             OccupancyLimit = occupancyLimit;
         }
 
@@ -88,6 +90,7 @@ namespace MurderMayhem
             if (HasAllowHotelRooftopBarMayhem) keys.Add("HotelRooftopBar-Mayhem");
             if (HasAllowHotelRooftopMayhem) keys.Add("HotelRooftop-Mayhem");
             if (HasAllowMixedIndustrialRooftopMayhem) keys.Add("MixedIndustrialRooftop-Mayhem");
+            if (HasAllowTestMayhem) keys.Add("Test-Mayhem");
             if (OccupancyLimit.HasValue) keys.Add($"OccupancyLimit={OccupancyLimit.Value}");
             
             return keys.Count > 0 ? string.Join(", ", keys) : "None";
@@ -153,6 +156,7 @@ namespace MurderMayhem
                             bool hasAllowAnywhereMayhem = ExtractBool(content, "allowAnywhere-Mayhem");
                             bool hasAllowParkMayhem = ExtractBool(content, "allowPark-Mayhem");
                             bool hasAllowHotelBathroomMayhem = ExtractBool(content, "allowHotelBathroom-Mayhem");
+                            bool hasAllowTestMayhem = ExtractBool(content, "allowTest-Mayhem");
 
                             results.Add(new CustomCaseInfo(
                                 jsonPath,
@@ -176,6 +180,7 @@ namespace MurderMayhem
                                 hasAllowHotelRooftopBarMayhem,
                                 hasAllowHotelRooftopMayhem,
                                 hasAllowMixedIndustrialRooftopMayhem,
+                                hasAllowTestMayhem,
                                 occupancyLimit
                             ));
                         }
