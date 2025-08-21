@@ -636,6 +636,7 @@ namespace MurderMayhem
             if (caseInfo.HasAllowHotelRooftopBarMayhem) rules.Add(HotelRooftopBarRule);
             if (caseInfo.HasAllowHotelRooftopMayhem) rules.Add(HotelRooftopRule);
             if (caseInfo.HasAllowMixedIndustrialRooftopMayhem) rules.Add(MixedIndustrialRooftopRule);
+            if (caseInfo.HasAllowTestMayhem) rules.Add(TestRule);
             return rules;
         }
 
