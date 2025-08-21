@@ -31,6 +31,14 @@ namespace MurderMayhem
 
             // Scan r2modman profiles/plugins for custom case JSONs
             CustomCases = CustomCaseScanner.ScanAllProfilesForCustomCases();
+            
+            // Log all applied patches for debugging
+            Log.LogInfo("Applied patches:");
+            foreach (var method in Harmony.GetPatchedMethods())
+            {
+                Log.LogInfo($"  - {method.DeclaringType?.Name}.{method.Name}");
+            }
+            
             Log.LogInfo("Plugin is patched.");
 
             exampleConfigVariable = Config.Bind("General", "ExampleConfigVariable", false, new ConfigDescription("Example config description."));

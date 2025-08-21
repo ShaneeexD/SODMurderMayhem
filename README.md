@@ -162,7 +162,6 @@ If your custom murder cases aren't working as expected:
 
 ## Known Issues
 
-- Some locations might still be rejected if they have other restrictions not handled by this mod
 
 ## Future Plans
 
