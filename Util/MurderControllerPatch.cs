@@ -522,7 +522,7 @@ namespace MurderMayhem
             Key = "allowHotelRooftop-Mayhem",
             PresetNames = new[] { "Rooftop" },
             NameContains = new[] { "rooftop", "Rooftop" },
-            NameExcludes = Array.Empty<string>(),
+            NameExcludes = new[] { "null", "Null" },
             FloorNameContains = new[] { "hotel_rooftopbar" },
             FloorNameExcludes = Array.Empty<string>()
         };
@@ -541,9 +541,19 @@ namespace MurderMayhem
         {
             Key = "allowTest-Mayhem",
             PresetNames = new[] { "BusinessBackroom" },
-            NameContains = new[] { "cafe backroom", "Cafe Backroom" },
+            NameContains = new[] { "Patridge Cafe Backroom", "Backroom" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "dinerfloorbeta" },
+            FloorNameExcludes = Array.Empty<string>()
+        };
+
+        internal static readonly LocationRule FathomsPowerRoomRule = new LocationRule
+        {
+            Key = "allowFathomsPowerRoom-Mayhem",
+            PresetNames = new[] { "PowerRoom" },
+            NameContains = new[] { "Power Room", "Power room" },
+            NameExcludes = Array.Empty<string>(),
+            FloorNameContains = new[] { "shantytown_basement01" },
             FloorNameExcludes = Array.Empty<string>()
         };
 
@@ -637,6 +647,7 @@ namespace MurderMayhem
             if (caseInfo.HasAllowHotelRooftopMayhem) rules.Add(HotelRooftopRule);
             if (caseInfo.HasAllowMixedIndustrialRooftopMayhem) rules.Add(MixedIndustrialRooftopRule);
             if (caseInfo.HasAllowTestMayhem) rules.Add(TestRule);
+            if (caseInfo.HasAllowFathomsPowerRoomMayhem) rules.Add(FathomsPowerRoomRule);
             return rules;
         }
 
