@@ -946,6 +946,7 @@ namespace MurderMayhem
                     {
                         var matched = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules)?.Key ?? "dynamic-rule";
                         Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM ({matched}) for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
+                        Plugin.Log?.LogInfo($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM ({matched}) for victim {m.victim.GetCitizenName()} to: {chosen.name}");
                         var ai = m.victim.ai;
                         ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
                         return;
