@@ -353,8 +353,13 @@ namespace MurderMayhem
         internal static string NormalizeName(string s)
         {
             if (string.IsNullOrEmpty(s)) return string.Empty;
-            var filtered = s.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray();
-            return new string(filtered);
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (var ch in s)
+            {
+                if (char.IsLetterOrDigit(ch))
+                    sb.Append(char.ToLowerInvariant(ch));
+            }
+            return sb.ToString();
         }
 
         internal static bool IsLocationUsable(MurderController.Murder murder, NewGameLocation loc, CustomCaseInfo caseInfo)
@@ -455,6 +460,12 @@ namespace MurderMayhem
             public string[] FloorNameContains; // Optional substrings to match on floor name(s) within the address (lowercase)
             public string[] FloorNameExcludes; // Optional substrings to exclude on floor name(s) (lowercase)
             // Future: add fields for street flags, etc.
+
+            // Sub-room level filters (optional)
+            public string SubRoomName; // single name contains
+            public string SubRoomPreset; // single preset contains
+            public string[] SubRoomNames; // list of name contains
+            public string[] SubRoomPresets; // list of preset contains
         }
 
         // Rule: Park/Path
@@ -463,7 +474,9 @@ namespace MurderMayhem
             Key = "allowPark-Mayhem",
             PresetNames = new[] { "Park", "Path" },
             NameContains = new[] { "park", "path" },
-            NameExcludes = Array.Empty<string>()
+            NameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         internal static readonly LocationRule HotelBathroomRule = new LocationRule
@@ -473,7 +486,9 @@ namespace MurderMayhem
             NameContains = new[] { "public bathrooms", "bathroom" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "hotel_basement" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         internal static readonly LocationRule DinerBathroomRule = new LocationRule
@@ -483,7 +498,9 @@ namespace MurderMayhem
             NameContains = new[] { "public bathrooms", "bathroom" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "dinerfloorbeta" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         internal static readonly LocationRule FathomsYardBasementRule = new LocationRule
@@ -493,7 +510,9 @@ namespace MurderMayhem
             NameContains = new[] { "Fathoms yard", "Fathoms Yard" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "shantytown_basement" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         internal static readonly LocationRule FathomsYardRooftopRule = new LocationRule
@@ -503,7 +522,9 @@ namespace MurderMayhem
             NameContains = new[] { "rooftop", "Rooftop" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "shantytown" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         internal static readonly LocationRule HotelRooftopBarRule = new LocationRule
@@ -513,7 +534,9 @@ namespace MurderMayhem
             NameContains = new[] { "rooftop bar", "Rooftop Bar" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "hotel_rooftopbar" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         
@@ -524,7 +547,9 @@ namespace MurderMayhem
             NameContains = new[] { "rooftop", "Rooftop" },
             NameExcludes = new[] { "null", "Null" },
             FloorNameContains = new[] { "hotel_rooftopbar" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         internal static readonly LocationRule MixedIndustrialRooftopRule = new LocationRule
@@ -534,17 +559,21 @@ namespace MurderMayhem
             NameContains = new[] { "rooftop", "Rooftop" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "mixedindustrial" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         internal static readonly LocationRule TestRule = new LocationRule
         {
             Key = "allowTest-Mayhem",
-            PresetNames = new[] { "BusinessBackroom" },
-            NameContains = new[] { "Patridge Cafe Backroom", "Backroom" },
+            PresetNames = new[] { "AmericanDiner" },
+            NameContains = new[] { "Diner", "diner" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "dinerfloorbeta" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = new[] { "Backroom", "backroom" },
+            SubRoomPresets = new[] { "BusinessBackroom" }
         };
 
         internal static readonly LocationRule FathomsPowerRoomRule = new LocationRule
@@ -554,7 +583,9 @@ namespace MurderMayhem
             NameContains = new[] { "Power Room", "Power room" },
             NameExcludes = Array.Empty<string>(),
             FloorNameContains = new[] { "shantytown_basement01" },
-            FloorNameExcludes = Array.Empty<string>()
+            FloorNameExcludes = Array.Empty<string>(),
+            SubRoomNames = Array.Empty<string>(),
+            SubRoomPresets = Array.Empty<string>()
         };
 
         // Helper: does any floor name on this location's address match the rule's floor constraints
@@ -673,15 +704,283 @@ namespace MurderMayhem
             return null;
         }
 
+        // Try to pick an anchor node from a suitable (sub-)room inside an address location using rule-driven filters
+        internal static NewNode TryFindAnchorNodeFromRooms(NewGameLocation loc, LocationRule rule)
+        {
+            var addr = loc?.thisAsAddress;
+            var rooms = addr?.rooms;
+            if (rooms == null || rooms.Count == 0)
+                return null;
+
+            // Helper to choose a representative anchor node for a room
+            // Preference: a furniture anchor node if available, otherwise any room node
+            NewNode RoomAnchor(NewRoom room)
+            {
+                if (room == null) return null;
+                try
+                {
+                    if (room.individualFurniture != null)
+                    {
+                        foreach (var fl in room.individualFurniture)
+                        {
+                            if (fl?.anchorNode != null)
+                                return fl.anchorNode;
+                        }
+                    }
+                }
+                catch { }
+                if (room.nodes != null && room.nodes.Count > 0)
+                {
+                    // Use the first node available as a simple anchor
+                    foreach (var n in room.nodes)
+                    {
+                        return n;
+                    }
+                }
+                return null;
+            }
+
+            // Local helpers without LINQ
+            bool AnySpecified(IEnumerable<string> arr)
+            {
+                if (arr == null) return false;
+                foreach (var s in arr) { if (!string.IsNullOrEmpty(s)) return true; }
+                return false;
+            }
+            bool ContainsCI(string src, string needle)
+            {
+                return !string.IsNullOrEmpty(src) && !string.IsNullOrEmpty(needle) && src.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+            bool ListContainsCI(string src, IEnumerable<string> needles)
+            {
+                if (string.IsNullOrEmpty(src) || needles == null) return false;
+                foreach (var n in needles)
+                {
+                    if (!string.IsNullOrEmpty(n) && src.IndexOf(n, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+                }
+                return false;
+            }
+
+            // Step 1: filter candidate MAIN rooms
+            // Build initial candidate list (non-null rooms)
+            var mainCandidates = new List<NewRoom>();
+            foreach (var r in rooms) if (r != null) mainCandidates.Add(r);
+
+            // Floor filtering (optional)
+            if (rule != null)
+            {
+                if (AnySpecified(rule?.FloorNameContains))
+                {
+                    var filtered = new List<NewRoom>();
+                    foreach (var r in mainCandidates)
+                    {
+                        var fname = r?.floor?.name;
+                        if (!string.IsNullOrEmpty(fname) && ListContainsCI(fname, rule.FloorNameContains))
+                            filtered.Add(r);
+                    }
+                    mainCandidates = filtered;
+                }
+                if (AnySpecified(rule?.FloorNameExcludes))
+                {
+                    var filtered = new List<NewRoom>();
+                    foreach (var r in mainCandidates)
+                    {
+                        var fn = r?.floor?.name ?? string.Empty;
+                        if (!ListContainsCI(fn, rule.FloorNameExcludes))
+                            filtered.Add(r);
+                    }
+                    mainCandidates = filtered;
+                }
+            }
+
+            // Use existing rule fields for MAIN room selection: PresetNames (room preset), NameContains/Excludes (room name)
+            bool hasNameCrit = AnySpecified(rule?.NameContains) || AnySpecified(rule?.NameExcludes);
+            bool hasPresetCrit = AnySpecified(rule?.PresetNames);
+            if (rule != null && (hasNameCrit || hasPresetCrit))
+            {
+                var filtered = new List<NewRoom>();
+                foreach (var r in mainCandidates)
+                {
+                    string rName = r?.name ?? string.Empty;
+                    string rPreset = r?.preset?.name ?? string.Empty;
+
+                    bool nameOk = true;
+                    if (AnySpecified(rule.NameContains))
+                        nameOk = ListContainsCI(rName, rule.NameContains);
+                    if (nameOk && AnySpecified(rule.NameExcludes))
+                        nameOk = !ListContainsCI(rName, rule.NameExcludes);
+
+                    bool presetOk = true;
+                    if (AnySpecified(rule.PresetNames))
+                        presetOk = ListContainsCI(rPreset, rule.PresetNames);
+
+                    if (nameOk && presetOk)
+                        filtered.Add(r);
+                }
+                mainCandidates = filtered;
+            }
+
+            // Prefer lowest-occupancy or anchored rooms; pick best main room
+            NewRoom bestMain = null;
+            int bestScore = int.MinValue;
+            foreach (var r in mainCandidates)
+            {
+                int s = 0;
+                var rAnchor = RoomAnchor(r);
+                if (rAnchor != null) s += 3;
+                // proximity bonus to location anchor if available
+                var locAnchor = loc?.anchorNode;
+                if (locAnchor != null && rAnchor != null)
+                {
+                    float d = Vector3.Distance(locAnchor.position, rAnchor.position);
+                    s += Mathf.Clamp(10 - Mathf.RoundToInt(d), -5, 5);
+                }
+                // occupation heuristic
+                int occ = r?.gameLocation?.currentOccupants?.Count ?? 0;
+                s += (occ == 0 ? 2 : 0);
+                if (s > bestScore) { bestScore = s; bestMain = r; }
+            }
+
+            if (bestMain == null)
+            {
+                // fall back to simple heuristic (previous behavior)
+                foreach (var r in rooms)
+                {
+                    var anchor = RoomAnchor(r);
+                    if (anchor != null)
+                        return anchor;
+                }
+                return null;
+            }
+
+            // Step 2: if sub-room filters are supplied, try to find a sub-room relative to the main room
+            bool subCriteriaSupplied =
+                !string.IsNullOrEmpty(rule?.SubRoomName) ||
+                !string.IsNullOrEmpty(rule?.SubRoomPreset) ||
+                AnySpecified(rule?.SubRoomNames) ||
+                AnySpecified(rule?.SubRoomPresets);
+
+            if (subCriteriaSupplied)
+            {
+                // Build a prefix from company name or the main room name's prefix
+                string locationPrefix = string.Empty;
+                var companyName = bestMain?.gameLocation?.thisAsAddress?.company?.name;
+                if (!string.IsNullOrEmpty(companyName)) locationPrefix = companyName;
+                else
+                {
+                    var rn = bestMain?.name ?? string.Empty;
+                    int lastSpace = rn.LastIndexOf(' ');
+                    if (lastSpace > 0) locationPrefix = rn.Substring(0, lastSpace);
+                }
+
+                var subCandidates = new List<NewRoom>();
+                foreach (var r in rooms)
+                {
+                    if (r != null && !string.IsNullOrEmpty(r.name)) subCandidates.Add(r);
+                }
+
+                // Apply sub-room filters
+                {
+                    var filtered = new List<NewRoom>();
+                    foreach (var r in subCandidates)
+                    {
+                        string rName = r.name;
+                        string rPreset = r?.preset?.name ?? string.Empty;
+
+                        bool nameMatch = false;
+                        if (!string.IsNullOrEmpty(rule.SubRoomName) && ContainsCI(rName, rule.SubRoomName)) nameMatch = true;
+                        if (!nameMatch && AnySpecified(rule.SubRoomNames) && ListContainsCI(rName, rule.SubRoomNames)) nameMatch = true;
+                        // If prefix exists, allow combined prefix+name contains as a helper
+                        if (!nameMatch && !string.IsNullOrEmpty(locationPrefix) && !string.IsNullOrEmpty(rule.SubRoomName) && ContainsCI(rName, locationPrefix) && ContainsCI(rName, rule.SubRoomName)) nameMatch = true;
+
+                        bool presetMatch = true;
+                        if (!string.IsNullOrEmpty(rule.SubRoomPreset)) presetMatch = ContainsCI(rPreset, rule.SubRoomPreset);
+                        if (presetMatch && AnySpecified(rule.SubRoomPresets)) presetMatch = ListContainsCI(rPreset, rule.SubRoomPresets);
+
+                        if (nameMatch && presetMatch)
+                            filtered.Add(r);
+                    }
+                    subCandidates = filtered;
+                }
+
+                // Choose the best sub-room similar heuristics
+                NewRoom bestSub = null;
+                bestScore = int.MinValue;
+                foreach (var r in subCandidates)
+                {
+                    int s = 0;
+                    var rAnchor = RoomAnchor(r);
+                    if (rAnchor != null) s += 3;
+                    var bestMainAnchor = RoomAnchor(bestMain);
+                    if (bestMainAnchor != null && rAnchor != null)
+                    {
+                        float d = Vector3.Distance(bestMainAnchor.position, rAnchor.position);
+                        s += Mathf.Clamp(10 - Mathf.RoundToInt(d), -5, 5);
+                    }
+                    int occ = r?.gameLocation?.currentOccupants?.Count ?? 0;
+                    s += (occ == 0 ? 2 : 0);
+                    if (s > bestScore) { bestScore = s; bestSub = r; }
+                }
+
+                var bestSubAnchor = RoomAnchor(bestSub);
+                if (bestSubAnchor != null)
+                    return bestSubAnchor;
+
+                // Try furniture anchors in best sub-room
+                if (bestSub?.individualFurniture != null)
+                {
+                    foreach (var fl in bestSub.individualFurniture)
+                    {
+                        if (fl?.anchorNode != null)
+                            return fl.anchorNode;
+                    }
+                }
+            }
+
+            // No sub-room specified or found; use main room anchor or furniture
+            var mainAnchor = RoomAnchor(bestMain);
+            if (mainAnchor != null)
+                return mainAnchor;
+
+            if (bestMain.individualFurniture != null)
+            {
+                foreach (var fl in bestMain.individualFurniture)
+                {
+                    if (fl?.anchorNode != null)
+                        return fl.anchorNode;
+                }
+            }
+
+            // Final fallback: any room with an anchor
+            foreach (var r in rooms)
+            {
+                var anchor = RoomAnchor(r);
+                if (anchor != null)
+                    return anchor;
+            }
+
+            return null;
+        }
+
         // Find a best-matching location by iterating active rules in random order
         internal static NewGameLocation FindBestLocationByRulesRandom(MurderController.Murder murder, CustomCaseInfo caseInfo, IEnumerable<LocationRule> rules)
         {
             if (murder == null || rules == null) return null;
-            var ruleList = rules.Where(r => r != null).ToList();
+            var ruleList = new List<LocationRule>();
+            foreach (var r in rules) { if (r != null) ruleList.Add(r); }
             if (ruleList.Count == 0) return null;
 
             // Shuffle rules using a local RNG to add variety across murders
-            var shuffled = ruleList.OrderBy(_ => Rng.NextDouble()).ToList();
+            // Simple Fisher-Yates shuffle
+            var shuffled = new List<LocationRule>(ruleList);
+            for (int i = shuffled.Count - 1; i > 0; i--)
+            {
+                int j = (int)Math.Floor(Rng.NextDouble() * (i + 1));
+                var tmp = shuffled[i];
+                shuffled[i] = shuffled[j];
+                shuffled[j] = tmp;
+            }
             foreach (var r in shuffled)
             {
                 var loc = FindBestLocationByRule(murder, caseInfo, r);
@@ -835,7 +1134,32 @@ namespace MurderMayhem
                     
                     // Override the target location
                     newPassedGameLocation = chosen;
-                    newPassedNode = human.FindSafeTeleport(chosen, false, true);
+                    // Prefer sub-room anchor if the rule specifies sub-room filters; otherwise safe teleport
+                    NewNode selNode = null;
+                    var matchedRuleObj = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules);
+                    bool hasSubFilters = matchedRuleObj != null && (
+                        !string.IsNullOrEmpty(matchedRuleObj.SubRoomName) ||
+                        !string.IsNullOrEmpty(matchedRuleObj.SubRoomPreset) ||
+                        (matchedRuleObj.SubRoomNames != null && matchedRuleObj.SubRoomNames.Length > 0) ||
+                        (matchedRuleObj.SubRoomPresets != null && matchedRuleObj.SubRoomPresets.Length > 0)
+                    );
+                    if (hasSubFilters)
+                    {
+                        selNode = MurderPatchHelpers.TryFindAnchorNodeFromRooms(chosen, matchedRuleObj);
+                        if (selNode == null)
+                        {
+                            selNode = human.FindSafeTeleport(chosen, false, true);
+                        }
+                    }
+                    else
+                    {
+                        selNode = human.FindSafeTeleport(chosen, false, true);
+                        if (selNode == null)
+                        {
+                            selNode = MurderPatchHelpers.TryFindAnchorNodeFromRooms(chosen, matchedRuleObj);
+                        }
+                    }
+                    newPassedNode = selNode;
                     
                     // Let the original method continue with our modified parameters
                     return true;
@@ -923,7 +1247,15 @@ namespace MurderMayhem
                     {
                         Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM alley for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
                         var ai = m.victim.ai;
-                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
+                        var node = m.victim.FindSafeTeleport(chosen, false, true);
+                        if (node == null)
+                        {
+                            var matchedRuleObj = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, MurderPatchHelpers.GetActiveRules(caseInfo));
+                            node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(chosen, matchedRuleObj);
+                            if (node != null)
+                                Plugin.Log?.LogInfo($"[Patch] UpdatePatch: Using sub-room anchor fallback for location {chosen.name}");
+                        }
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, node, null, chosen, null, null, -2);
                         return;
                     }
                 }
@@ -943,7 +1275,15 @@ namespace MurderMayhem
                     {
                         Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM backstreet for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
                         var ai = m.victim.ai;
-                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
+                        var node = m.victim.FindSafeTeleport(chosen, false, true);
+                        if (node == null)
+                        {
+                            var matchedRuleObj = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, MurderPatchHelpers.GetActiveRules(caseInfo));
+                            node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(chosen, matchedRuleObj);
+                            if (node != null)
+                                Plugin.Log?.LogInfo($"[Patch] UpdatePatch: Using sub-room anchor fallback for location {chosen.name}");
+                        }
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, node, null, chosen, null, null, -2);
                         return;
                     }
                 }
@@ -959,7 +1299,31 @@ namespace MurderMayhem
                         Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM ({matched}) for victim {m.victim.GetCitizenName()} to: {chosen.name}", 2);
                         Plugin.Log?.LogInfo($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM ({matched}) for victim {m.victim.GetCitizenName()} to: {chosen.name}");
                         var ai = m.victim.ai;
-                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, m.victim.FindSafeTeleport(chosen, false, true), null, chosen, null, null, -2);
+                        NewNode node = null;
+                        var matchedRuleObj = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules);
+                        bool hasSubFilters = matchedRuleObj != null && (
+                            !string.IsNullOrEmpty(matchedRuleObj.SubRoomName) ||
+                            !string.IsNullOrEmpty(matchedRuleObj.SubRoomPreset) ||
+                            (matchedRuleObj.SubRoomNames != null && matchedRuleObj.SubRoomNames.Length > 0) ||
+                            (matchedRuleObj.SubRoomPresets != null && matchedRuleObj.SubRoomPresets.Length > 0)
+                        );
+                        if (hasSubFilters)
+                        {
+                            node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(chosen, matchedRuleObj);
+                            if (node == null)
+                            {
+                                node = m.victim.FindSafeTeleport(chosen, false, true);
+                            }
+                        }
+                        else
+                        {
+                            node = m.victim.FindSafeTeleport(chosen, false, true);
+                            if (node == null)
+                            {
+                                node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(chosen, matchedRuleObj);
+                            }
+                        }
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, node, null, chosen, null, null, -2);
                         return;
                     }
                 }
