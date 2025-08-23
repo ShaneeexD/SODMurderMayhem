@@ -91,6 +91,8 @@ namespace MurderMayhem
                             newTargetSite = rooftop;
                             __result = true;
                             Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: Overriding to victim HOME ROOFTOP due to allowVictimHomeRooftop-Mayhem");
+                            // Ensure murderer state progresses by explicitly setting the murder location
+                            try { __instance.SetMurderLocation(newTargetSite); } catch (Exception ex) { Plugin.Log?.LogWarning($"[Patch] TryPickNewVictimSitePrefix: SetMurderLocation failed: {ex.Message}"); }
                             return false; // skip vanilla
                         }
                     }
@@ -111,7 +113,8 @@ namespace MurderMayhem
                         __result = true;
                         var matched = MurderPatchHelpers.GetMatchingRuleForLocation(chosen, rules)?.Key ?? "dynamic-rule";
                         Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSitePrefix: INTERCEPTED and set '{chosen.name}' due to {matched}");
-                        
+                        // Ensure murderer state progresses by explicitly setting the murder location
+                        try { __instance.SetMurderLocation(newTargetSite); } catch (Exception ex) { Plugin.Log?.LogWarning($"[Patch] TryPickNewVictimSitePrefix: SetMurderLocation failed: {ex.Message}"); }
                         // Skip the original method
                         return false;
                     }
@@ -282,16 +285,43 @@ namespace MurderMayhem
                         __result = true;
                         Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing ANY location due to allowAnywhere-Mayhem");
                     }
-                    // Allow victim home rooftop or home if the rooftop rule is active
+                    // Allow victim home or the victim's building rooftop if the rooftop rule is active
                     if (!__result && caseInfo?.HasAllowVictimHomeRooftopMayhem == true)
                     {
-                        var rooftop = MurderPatchHelpers.TryFindVictimHomeRooftop(__instance, caseInfo, out var victimHome);
-                        bool isHome = victimHome != null && newLoc == victimHome;
-                        bool isRooftop = rooftop != null && newLoc == rooftop;
-                        if ((isHome || isRooftop) && MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                        var homeAddr = __instance.victim?.home;
+                        var victimBuilding = homeAddr?.building;
+                        var asAddr = newLoc.thisAsAddress;
+
+                        bool allow = false;
+                        if (homeAddr != null && newLoc == (NewGameLocation)homeAddr)
+                        {
+                            allow = true; // exact home match
+                        }
+                        else if (asAddr != null)
+                        {
+                            // Same building and contains a Rooftop sub-room
+                            if (victimBuilding != null && asAddr.building == victimBuilding)
+                            {
+                                var rooms = asAddr.rooms;
+                                if (rooms != null)
+                                {
+                                    foreach (var r in rooms)
+                                    {
+                                        var rp = r?.preset?.name;
+                                        if (!string.IsNullOrEmpty(rp) && string.Equals(rp, "Rooftop", StringComparison.OrdinalIgnoreCase))
+                                        { allow = true; break; }
+                                        var rn = r?.name;
+                                        if (!allow && !string.IsNullOrEmpty(rn) && (rn.IndexOf("rooftop", StringComparison.OrdinalIgnoreCase) >= 0 || rn.IndexOf("roof", StringComparison.OrdinalIgnoreCase) >= 0))
+                                        { allow = true; break; }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (allow && MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
                         {
                             __result = true;
-                            Plugin.Log?.LogInfo($"[Patch] IsValidLocation: Allowing {(isRooftop ? "victim HOME ROOFTOP" : "victim HOME")} due to allowVictimHomeRooftop-Mayhem");
+                            Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing victim BUILDING ROOFTOP due to allowVictimHomeRooftop-Mayhem");
                         }
                     }
                     if (caseInfo?.HasAllowWorkMayhem == true)
