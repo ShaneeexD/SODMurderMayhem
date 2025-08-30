@@ -35,12 +35,14 @@ namespace MurderMayhem
         public bool HasAllowFathomsPowerRoomMayhem { get; }
         public bool HasAllowVictimHomeRooftopMayhem { get; }
         public bool HasAllowVictimWorkRooftopMayhem { get; }
+        public bool HasAllowMurdererHomeRooftopMayhem { get; }
+        public bool HasAllowMurdererWorkRooftopMayhem { get; }
         // Optional overrides
         public int? OccupancyLimit { get; }
 
         public CustomCaseInfo(string filePath, string presetName, string profileName, 
             bool hasAllowAnywhere, bool hasAllowAnywhereMayhem, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
-            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowParkMayhem, bool hasAllowHotelBathroomMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, bool hasAllowDinerBathroomMayhem, bool hasAllowFathomsYardBasementMayhem, bool hasAllowFathomsYardRooftopMayhem, bool hasAllowHotelRooftopBarMayhem, bool hasAllowHotelRooftopMayhem, bool hasAllowMixedIndustrialRooftopMayhem, bool hasAllowTestMayhem, bool hasAllowFathomsPowerRoomMayhem, bool hasAllowVictimHomeRooftopMayhem, bool hasAllowVictimWorkRooftopMayhem, int? occupancyLimit)
+            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowParkMayhem, bool hasAllowHotelBathroomMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, bool hasAllowDinerBathroomMayhem, bool hasAllowFathomsYardBasementMayhem, bool hasAllowFathomsYardRooftopMayhem, bool hasAllowHotelRooftopBarMayhem, bool hasAllowHotelRooftopMayhem, bool hasAllowMixedIndustrialRooftopMayhem, bool hasAllowTestMayhem, bool hasAllowFathomsPowerRoomMayhem, bool hasAllowVictimHomeRooftopMayhem, bool hasAllowVictimWorkRooftopMayhem, bool hasAllowMurdererHomeRooftopMayhem, bool hasAllowMurdererWorkRooftopMayhem, int? occupancyLimit)
         {
             FilePath = filePath;
             PresetName = presetName;
@@ -67,6 +69,8 @@ namespace MurderMayhem
             HasAllowFathomsPowerRoomMayhem = hasAllowFathomsPowerRoomMayhem;
             HasAllowVictimHomeRooftopMayhem = hasAllowVictimHomeRooftopMayhem;
             HasAllowVictimWorkRooftopMayhem = hasAllowVictimWorkRooftopMayhem;
+            HasAllowMurdererHomeRooftopMayhem = hasAllowMurdererHomeRooftopMayhem;
+            HasAllowMurdererWorkRooftopMayhem = hasAllowMurdererWorkRooftopMayhem;
             OccupancyLimit = occupancyLimit;
         }
 
@@ -100,6 +104,8 @@ namespace MurderMayhem
             if (HasAllowFathomsPowerRoomMayhem) keys.Add("FathomsPowerRoom-Mayhem");
             if (HasAllowVictimHomeRooftopMayhem) keys.Add("VictimHomeRooftop-Mayhem");
             if (HasAllowVictimWorkRooftopMayhem) keys.Add("VictimWorkRooftop-Mayhem");
+            if (HasAllowMurdererHomeRooftopMayhem) keys.Add("MurdererHomeRooftop-Mayhem");
+            if (HasAllowMurdererWorkRooftopMayhem) keys.Add("MurdererWorkRooftop-Mayhem");
             if (OccupancyLimit.HasValue) keys.Add($"OccupancyLimit={OccupancyLimit.Value}");
             
             return keys.Count > 0 ? string.Join(", ", keys) : "None";
@@ -169,6 +175,8 @@ namespace MurderMayhem
                             bool hasAllowFathomsPowerRoomMayhem = ExtractBool(content, "allowFathomsPowerRoom-Mayhem");
                             bool hasAllowVictimHomeRooftopMayhem = ExtractBool(content, "allowVictimHomeRooftop-Mayhem");
                             bool hasAllowVictimWorkRooftopMayhem = ExtractBool(content, "allowVictimWorkRooftop-Mayhem");
+                            bool hasAllowMurdererHomeRooftopMayhem = ExtractBool(content, "allowMurdererHomeRooftop-Mayhem");
+                            bool hasAllowMurdererWorkRooftopMayhem = ExtractBool(content, "allowMurdererWorkRooftop-Mayhem");
 
                             results.Add(new CustomCaseInfo(
                                 jsonPath,
@@ -196,6 +204,8 @@ namespace MurderMayhem
                                 hasAllowFathomsPowerRoomMayhem,
                                 hasAllowVictimHomeRooftopMayhem,
                                 hasAllowVictimWorkRooftopMayhem,
+                                hasAllowMurdererHomeRooftopMayhem,
+                                hasAllowMurdererWorkRooftopMayhem,
                                 occupancyLimit
                             ));
                         }

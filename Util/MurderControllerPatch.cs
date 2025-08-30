@@ -126,6 +126,42 @@ namespace MurderMayhem
                     }
                 }
 
+                // New: allowMurdererHomeRooftop-Mayhem
+                if (caseInfo?.HasAllowMurdererHomeRooftopMayhem == true)
+                {
+                    var rooftop = MurderPatchHelpers.TryFindMurdererHomeRooftop(__instance, caseInfo, out var murdererHome);
+                    if (rooftop != null && MurderPatchHelpers.IsLocationUsable(__instance, rooftop, caseInfo))
+                    {
+                        newTargetSite = rooftop;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: Overriding to MURDERER HOME ROOFTOP due to allowMurdererHomeRooftop-Mayhem");
+                        try { __instance.SetMurderLocation(newTargetSite); } catch (Exception ex) { Plugin.Log?.LogWarning($"[Patch] TryPickNewVictimSitePrefix: SetMurderLocation failed: {ex.Message}"); }
+                        return false;
+                    }
+                    if (murdererHome != null)
+                    {
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: No murderer home rooftop found, letting vanilla continue");
+                    }
+                }
+
+                // New: allowMurdererWorkRooftop-Mayhem
+                if (caseInfo?.HasAllowMurdererWorkRooftopMayhem == true)
+                {
+                    var rooftop = MurderPatchHelpers.TryFindMurdererWorkRooftop(__instance, caseInfo, out var murdererWork);
+                    if (rooftop != null && MurderPatchHelpers.IsLocationUsable(__instance, rooftop, caseInfo))
+                    {
+                        newTargetSite = rooftop;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: Overriding to MURDERER WORK ROOFTOP due to allowMurdererWorkRooftop-Mayhem");
+                        try { __instance.SetMurderLocation(newTargetSite); } catch (Exception ex) { Plugin.Log?.LogWarning($"[Patch] TryPickNewVictimSitePrefix: SetMurderLocation failed: {ex.Message}"); }
+                        return false;
+                    }
+                    if (murdererWork != null)
+                    {
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: No murderer work rooftop found, allowing vanilla to proceed");
+                    }
+                }
+
                 var rules = MurderPatchHelpers.GetActiveRules(caseInfo);
                 if (rules.Count > 0)
                 {
@@ -198,6 +234,32 @@ namespace MurderMayhem
                         newTargetSite = rooftop;
                         __result = true;
                         Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSite: Postfix override to victim WORK ROOFTOP due to allowVictimWorkRooftop-Mayhem");
+                        return;
+                    }
+                }
+
+                // New: murderer home rooftop fallback
+                if ((!__result || newTargetSite == null) && caseInfo?.HasAllowMurdererHomeRooftopMayhem == true)
+                {
+                    var rooftop = MurderPatchHelpers.TryFindMurdererHomeRooftop(__instance, caseInfo, out _);
+                    if (rooftop != null && MurderPatchHelpers.IsLocationUsable(__instance, rooftop, caseInfo))
+                    {
+                        newTargetSite = rooftop;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSite: Postfix override to MURDERER HOME ROOFTOP due to allowMurdererHomeRooftop-Mayhem");
+                        return;
+                    }
+                }
+
+                // New: murderer work rooftop fallback
+                if ((!__result || newTargetSite == null) && caseInfo?.HasAllowMurdererWorkRooftopMayhem == true)
+                {
+                    var rooftop = MurderPatchHelpers.TryFindMurdererWorkRooftop(__instance, caseInfo, out _);
+                    if (rooftop != null && MurderPatchHelpers.IsLocationUsable(__instance, rooftop, caseInfo))
+                    {
+                        newTargetSite = rooftop;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSite: Postfix override to MURDERER WORK ROOFTOP due to allowMurdererWorkRooftop-Mayhem");
                         return;
                     }
                 }
@@ -393,6 +455,71 @@ namespace MurderMayhem
                         {
                             __result = true;
                             Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing victim BUILDING WORK ROOFTOP due to allowVictimWorkRooftop-Mayhem");
+                        }
+                    }
+
+                    // Allow murderer home rooftop if the rooftop rule is active
+                    if (!__result && caseInfo?.HasAllowMurdererHomeRooftopMayhem == true)
+                    {
+                        var homeAddr = __instance.murderer?.home; 
+                        var murdererBuilding = homeAddr?.building;
+                        var asAddr = newLoc.thisAsAddress;
+                        bool allow = false;
+                        // Exact home match
+                        if (homeAddr != null && newLoc == (NewGameLocation)homeAddr)
+                        {
+                            allow = true;
+                        }
+                        else if (asAddr != null && murdererBuilding != null && asAddr.building == murdererBuilding)
+                        {
+                            var rooms = asAddr.rooms;
+                            if (rooms != null)
+                            {
+                                foreach (var r in rooms)
+                                {
+                                    var rp = r?.preset?.name;
+                                    if (!string.IsNullOrEmpty(rp) && string.Equals(rp, "Rooftop", StringComparison.OrdinalIgnoreCase))
+                                    { allow = true; break; }
+                                    var rn = r?.name;
+                                    if (!allow && !string.IsNullOrEmpty(rn) && (rn.IndexOf("rooftop", StringComparison.OrdinalIgnoreCase) >= 0 || rn.IndexOf("roof", StringComparison.OrdinalIgnoreCase) >= 0))
+                                    { allow = true; break; }
+                                }
+                            }
+                        }
+                        if (allow && MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                        {
+                            __result = true;
+                            Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing MURDERER BUILDING ROOFTOP due to allowMurdererHomeRooftop-Mayhem");
+                        }
+                    }
+
+                    // Allow murderer work rooftop if the rooftop rule is active
+                    if (!__result && caseInfo?.HasAllowMurdererWorkRooftopMayhem == true)
+                    {
+                        var workAddr = __instance.murderer?.job?.employer?.placeOfBusiness?.thisAsAddress;
+                        var murdererBuilding = workAddr?.building;
+                        var asAddr = newLoc.thisAsAddress;
+                        bool allow = false;
+                        if (asAddr != null && murdererBuilding != null && asAddr.building == murdererBuilding)
+                        {
+                            var rooms = asAddr.rooms;
+                            if (rooms != null)
+                            {
+                                foreach (var r in rooms)
+                                {
+                                    var rp = r?.preset?.name;
+                                    if (!string.IsNullOrEmpty(rp) && string.Equals(rp, "Rooftop", StringComparison.OrdinalIgnoreCase))
+                                    { allow = true; break; }
+                                    var rn = r?.name;
+                                    if (!allow && !string.IsNullOrEmpty(rn) && (rn.IndexOf("rooftop", StringComparison.OrdinalIgnoreCase) >= 0 || rn.IndexOf("roof", StringComparison.OrdinalIgnoreCase) >= 0))
+                                    { allow = true; break; }
+                                }
+                            }
+                        }
+                        if (allow && MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                        {
+                            __result = true;
+                            Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing MURDERER BUILDING WORK ROOFTOP due to allowMurdererWorkRooftop-Mayhem");
                         }
                     }
 
@@ -1685,6 +1812,355 @@ namespace MurderMayhem
 
             return chosen;
         }
+
+        // --- Murderer home rooftop helpers ---
+        internal static NewGameLocation TryFindMurdererHomeRooftop(MurderController.Murder murder, CustomCaseInfo caseInfo, out NewGameLocation murdererHome)
+        {
+            murdererHome = null;
+            try
+            {
+                var homeAddr = murder?.murderer?.home; // NewAddress in most cases
+                if (homeAddr == null)
+                    return null;
+                murdererHome = homeAddr as NewGameLocation;
+                // Derive building name as prefix for rooftop sub-room matching, and prefer same-building locations
+                var building = homeAddr.building;
+                string buildingName = building?.name;
+                var buildingTokens = new List<string>();
+                if (!string.IsNullOrEmpty(buildingName))
+                {
+                    foreach (var t in buildingName.Split(' '))
+                    {
+                        if (!string.IsNullOrEmpty(t)) buildingTokens.Add(t);
+                    }
+                }
+                // Prefer same-building rooftop locations
+                try
+                {
+                    NewGameLocation bestSameBuilding = null;
+                    int bestOcc = int.MaxValue;
+                    int scanned = 0, considered = 0, usable = 0;
+                    foreach (var loc in CityData.Instance.gameLocationDirectory)
+                    {
+                        scanned++;
+                        var addr = loc?.thisAsAddress;
+                        if (addr == null) continue;
+                        if (addr.building != building) continue;
+                        // Rooftop sub-room check
+                        bool hasRooftop = false;
+                        var rooms = addr.rooms;
+                        if (rooms != null)
+                        {
+                            foreach (var r in rooms)
+                            {
+                                var roomPreset = r?.preset?.name;
+                                if (!string.IsNullOrEmpty(roomPreset) && string.Equals(roomPreset, "Rooftop", StringComparison.OrdinalIgnoreCase))
+                                { hasRooftop = true; }
+                                if (!hasRooftop)
+                                {
+                                    var rn = r?.name;
+                                    if (!string.IsNullOrEmpty(rn) && (rn.IndexOf("rooftop", StringComparison.OrdinalIgnoreCase) >= 0 || rn.IndexOf("roof", StringComparison.OrdinalIgnoreCase) >= 0))
+                                    { hasRooftop = true; }
+                                }
+                                if (hasRooftop) break;
+                            }
+                        }
+                        if (!hasRooftop) continue;
+                        considered++;
+                        if (!IsLocationUsable(murder, loc, caseInfo))
+                        {
+                            Plugin.Log?.LogInfo($"[Patch] Murderer Home Rooftop same-building rejected (not usable): '{loc.name}' building='{buildingName}'");
+                            continue;
+                        }
+                        usable++;
+                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                        if (bestSameBuilding == null || occ < bestOcc)
+                        {
+                            bestSameBuilding = loc;
+                            bestOcc = occ;
+                        }
+                    }
+                    Plugin.Log?.LogInfo($"[Patch] Murderer Home Rooftop same-building scan: scanned={scanned}, considered={considered}, usable={usable}, chosen='{bestSameBuilding?.name ?? "null"}'");
+                    if (bestSameBuilding != null)
+                        return bestSameBuilding;
+                }
+                catch (Exception exSB)
+                {
+                    Plugin.Log?.LogWarning($"[Patch] Murderer Home Rooftop same-building scan error: {exSB.Message}");
+                }
+
+                // Dynamic rule fallback using building tokens
+                var rule = new LocationRule
+                {
+                    Key = "allowMurdererHomeRooftop-Mayhem",
+                    PresetNames = null,
+                    NameContains = Array.Empty<string>(),
+                    NameExcludes = Array.Empty<string>(),
+                    FloorNameContains = Array.Empty<string>(),
+                    FloorNameExcludes = Array.Empty<string>(),
+                    SubRoomNames = buildingTokens.Count > 0 ? buildingTokens.ToArray() : new[] { buildingName },
+                    SubRoomPresets = new[] { "Rooftop" }
+                };
+                var selected = FindBestLocationByRule(murder, caseInfo, rule);
+                if (selected != null) return selected;
+
+                // Global rooftop scan (same heuristics)
+                try
+                {
+                    NewGameLocation best = null;
+                    int bestOcc = int.MaxValue;
+                    int scanned = 0, considered = 0, usable = 0;
+                    foreach (var loc in CityData.Instance.gameLocationDirectory)
+                    {
+                        scanned++;
+                        var addr = loc?.thisAsAddress;
+                        if (addr == null) continue;
+                        var rooms = addr.rooms;
+                        bool hasRooftopRoom = false;
+                        if (rooms != null)
+                        {
+                            foreach (var r in rooms)
+                            {
+                                var roomPreset = r?.preset?.name;
+                                if (!string.IsNullOrEmpty(roomPreset) && string.Equals(roomPreset, "Rooftop", StringComparison.OrdinalIgnoreCase))
+                                { hasRooftopRoom = true; }
+                                if (!hasRooftopRoom)
+                                {
+                                    var rn = r?.name;
+                                    if (!string.IsNullOrEmpty(rn) && (rn.IndexOf("rooftop", StringComparison.OrdinalIgnoreCase) >= 0 || rn.IndexOf("roof", StringComparison.OrdinalIgnoreCase) >= 0))
+                                    { hasRooftopRoom = true; }
+                                }
+                                if (hasRooftopRoom)
+                                {
+                                    considered++;
+                                    bool ok = IsLocationUsable(murder, loc, caseInfo);
+                                    if (!ok)
+                                    {
+                                        Plugin.Log?.LogInfo($"[Patch] Murderer Home Rooftop global-scan rejected (not usable): '{loc.name}'");
+                                        hasRooftopRoom = false;
+                                        break;
+                                    }
+                                    usable++;
+                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                    if (best == null || occ < bestOcc)
+                                    {
+                                        best = loc;
+                                        bestOcc = occ;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Plugin.Log?.LogInfo($"[Patch] Murderer Home Rooftop global-scan: scanned={scanned}, considered={considered}, usable={usable}, chosen='{best?.name ?? "null"}'");
+                    return best;
+                }
+                catch (Exception ex2)
+                {
+                    Plugin.Log?.LogWarning($"[Patch] Murderer Home Rooftop global-scan fallback error: {ex2.Message}");
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"[Patch] TryFindMurdererHomeRooftop error: {ex.Message}");
+                return null;
+            }
+        }
+
+        // --- Murderer work rooftop helpers ---
+        internal static NewGameLocation TryFindMurdererWorkRooftop(MurderController.Murder murder, CustomCaseInfo caseInfo, out NewGameLocation murdererWorkplace)
+        {
+            murdererWorkplace = null;
+            try
+            {
+                var workplace = murder?.murderer?.job?.employer?.placeOfBusiness;
+                if (workplace == null)
+                    return null;
+                murdererWorkplace = workplace;
+                var building = workplace.thisAsAddress?.building;
+                string buildingName = building?.name;
+                var buildingTokens = new List<string>();
+                if (!string.IsNullOrEmpty(buildingName))
+                {
+                    foreach (var t in buildingName.Split(' '))
+                    {
+                        if (!string.IsNullOrEmpty(t)) buildingTokens.Add(t);
+                    }
+                }
+                // Prefer same-building rooftop
+                try
+                {
+                    NewGameLocation bestSameBuilding = null;
+                    int bestOcc = int.MaxValue;
+                    int scanned = 0, considered = 0, usable = 0;
+                    foreach (var loc in CityData.Instance.gameLocationDirectory)
+                    {
+                        scanned++;
+                        var addr = loc?.thisAsAddress;
+                        if (addr == null) continue;
+                        if (addr.building != building) continue;
+                        bool hasRooftop = false;
+                        var rooms = addr.rooms;
+                        if (rooms != null)
+                        {
+                            foreach (var r in rooms)
+                            {
+                                var roomPreset = r?.preset?.name;
+                                if (!string.IsNullOrEmpty(roomPreset) && string.Equals(roomPreset, "Rooftop", StringComparison.OrdinalIgnoreCase))
+                                { hasRooftop = true; }
+                                if (!hasRooftop)
+                                {
+                                    var rn = r?.name;
+                                    if (!string.IsNullOrEmpty(rn) && (rn.IndexOf("rooftop", StringComparison.OrdinalIgnoreCase) >= 0 || rn.IndexOf("roof", StringComparison.OrdinalIgnoreCase) >= 0))
+                                    {
+                                        if (addr.building == building) { hasRooftop = true; }
+                                        else if (buildingTokens.Count > 0)
+                                        {
+                                            foreach (var bt in buildingTokens)
+                                            {
+                                                if (!string.IsNullOrEmpty(bt) && rn.IndexOf(bt, StringComparison.OrdinalIgnoreCase) >= 0)
+                                                { hasRooftop = true; break; }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (hasRooftop) break;
+                            }
+                        }
+                        if (!hasRooftop) continue;
+                        considered++;
+                        if (!IsLocationUsable(murder, loc, caseInfo))
+                        {
+                            Plugin.Log?.LogInfo($"[Patch] Murderer Work Rooftop same-building rejected (not usable): '{loc.name}' building='{buildingName}'");
+                            continue;
+                        }
+                        usable++;
+                        int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                        if (bestSameBuilding == null || occ < bestOcc)
+                        {
+                            bestSameBuilding = loc;
+                            bestOcc = occ;
+                        }
+                    }
+                    Plugin.Log?.LogInfo($"[Patch] Murderer Work Rooftop same-building scan: scanned={scanned}, considered={considered}, usable={usable}, chosen='{bestSameBuilding?.name ?? "null"}'");
+                    if (bestSameBuilding != null)
+                        return bestSameBuilding;
+                }
+                catch (Exception exSB)
+                {
+                    Plugin.Log?.LogWarning($"[Patch] Murderer Work Rooftop same-building scan error: {exSB.Message}");
+                }
+                // Dynamic rule using building tokens
+                var murdererWorkRooftopRule = new LocationRule
+                {
+                    Key = "allowMurdererWorkRooftop-Mayhem",
+                    PresetNames = null,
+                    NameContains = Array.Empty<string>(),
+                    NameExcludes = Array.Empty<string>(),
+                    FloorNameContains = Array.Empty<string>(),
+                    FloorNameExcludes = Array.Empty<string>(),
+                    SubRoomNames = buildingTokens.Count > 0 ? buildingTokens.ToArray() : new[] { buildingName },
+                    SubRoomPresets = new[] { "Rooftop" }
+                };
+                var selected = FindBestLocationByRule(murder, caseInfo, murdererWorkRooftopRule);
+                if (selected != null) return selected;
+                // Fallback additional pass
+                if (!string.IsNullOrEmpty(buildingName))
+                {
+                    var fallbackRule = new LocationRule
+                    {
+                        Key = "allowMurdererWorkRooftop-Mayhem",
+                        PresetNames = null,
+                        NameContains = Array.Empty<string>(),
+                        NameExcludes = Array.Empty<string>(),
+                        FloorNameContains = Array.Empty<string>(),
+                        FloorNameExcludes = Array.Empty<string>(),
+                        SubRoomNames = buildingTokens.Count > 0 ? buildingTokens.ToArray() : new[] { buildingName },
+                        SubRoomPresets = new[] { "Rooftop" }
+                    };
+                    selected = FindBestLocationByRule(murder, caseInfo, fallbackRule);
+                }
+                if (selected != null) return selected;
+
+                // Global scan
+                try
+                {
+                    NewGameLocation best = null;
+                    int bestOcc = int.MaxValue;
+                    int scanned = 0, considered = 0, usable = 0;
+                    foreach (var loc in CityData.Instance.gameLocationDirectory)
+                    {
+                        scanned++;
+                        var addr = loc?.thisAsAddress;
+                        if (addr == null) continue;
+                        var rooms = addr.rooms;
+                        bool hasRooftopRoom = false;
+                        if (rooms != null)
+                        {
+                            foreach (var r in rooms)
+                            {
+                                var roomPreset = r?.preset?.name;
+                                if (!string.IsNullOrEmpty(roomPreset) && string.Equals(roomPreset, "Rooftop", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    hasRooftopRoom = true;
+                                }
+                                if (!hasRooftopRoom)
+                                {
+                                    var rn = r?.name;
+                                    if (!string.IsNullOrEmpty(rn) && (rn.IndexOf("rooftop", StringComparison.OrdinalIgnoreCase) >= 0 || rn.IndexOf("roof", StringComparison.OrdinalIgnoreCase) >= 0))
+                                    {
+                                        if (addr.building == building)
+                                        {
+                                            hasRooftopRoom = true;
+                                        }
+                                        else if (buildingTokens.Count > 0)
+                                        {
+                                            foreach (var bt in buildingTokens)
+                                            {
+                                                if (!string.IsNullOrEmpty(bt) && rn.IndexOf(bt, StringComparison.OrdinalIgnoreCase) >= 0)
+                                                { hasRooftopRoom = true; break; }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (hasRooftopRoom)
+                                {
+                                    considered++;
+                                    bool ok = IsLocationUsable(murder, loc, caseInfo);
+                                    if (!ok)
+                                    {
+                                        Plugin.Log?.LogInfo($"[Patch] Murderer Work Rooftop global-scan rejected (not usable): '{loc.name}' building='{buildingName}'");
+                                        hasRooftopRoom = false;
+                                        break;
+                                    }
+                                    usable++;
+                                    int occ = loc.currentOccupants != null ? loc.currentOccupants.Count : 0;
+                                    if (best == null || occ < bestOcc)
+                                    {
+                                        best = loc;
+                                        bestOcc = occ;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Plugin.Log?.LogInfo($"[Patch] Murderer Work Rooftop global-scan: scanned={scanned}, considered={considered}, usable={usable}, chosen='{best?.name ?? "null"}'");
+                    return best;
+                }
+                catch (Exception ex2)
+                {
+                    Plugin.Log?.LogWarning($"[Patch] Murderer Work Rooftop global-scan fallback error: {ex2.Message}");
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.LogError($"[Patch] TryFindMurdererWorkRooftop error: {ex.Message}");
+                return null;
+            }
+        }
     }
 
     // Patch to intercept AI goal creation for victims to ensure they go to the right location
@@ -1929,6 +2405,44 @@ namespace MurderMayhem
                         if (node == null)
                         {
                             // Try to anchor inside a Rooftop sub-room if possible
+                            var rule = new MurderPatchHelpers.LocationRule { SubRoomPresets = new[] { "Rooftop" }, SubRoomNames = Array.Empty<string>() };
+                            node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(rooftop, rule);
+                        }
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, node, null, rooftop, null, null, -2);
+                        return;
+                    }
+                }
+
+                // Custom: allowMurdererHomeRooftop-Mayhem -> send victim to the murderer's building rooftop
+                if (caseInfo.HasAllowMurdererHomeRooftopMayhem)
+                {
+                    var rooftop = MurderPatchHelpers.TryFindMurdererHomeRooftop(m, caseInfo, out var murdererHome);
+                    if (rooftop != null && MurderPatchHelpers.IsLocationUsable(m, rooftop, caseInfo))
+                    {
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM murderer HOME rooftop for victim {m.victim.GetCitizenName()} to: {rooftop.name}", 2);
+                        var ai = m.victim.ai;
+                        NewNode node = m.victim.FindSafeTeleport(rooftop, false, true);
+                        if (node == null)
+                        {
+                            var rule = new MurderPatchHelpers.LocationRule { SubRoomPresets = new[] { "Rooftop" }, SubRoomNames = Array.Empty<string>() };
+                            node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(rooftop, rule);
+                        }
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, node, null, rooftop, null, null, -2);
+                        return;
+                    }
+                }
+
+                // Custom: allowMurdererWorkRooftop-Mayhem -> send victim to the murderer's workplace building rooftop
+                if (caseInfo.HasAllowMurdererWorkRooftopMayhem)
+                {
+                    var rooftop = MurderPatchHelpers.TryFindMurdererWorkRooftop(m, caseInfo, out var murdererWork);
+                    if (rooftop != null && MurderPatchHelpers.IsLocationUsable(m, rooftop, caseInfo))
+                    {
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM murderer WORK rooftop for victim {m.victim.GetCitizenName()} to: {rooftop.name}", 2);
+                        var ai = m.victim.ai;
+                        NewNode node = m.victim.FindSafeTeleport(rooftop, false, true);
+                        if (node == null)
+                        {
                             var rule = new MurderPatchHelpers.LocationRule { SubRoomPresets = new[] { "Rooftop" }, SubRoomNames = Array.Empty<string>() };
                             node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(rooftop, rule);
                         }
