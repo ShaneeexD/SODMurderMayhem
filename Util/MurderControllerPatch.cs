@@ -491,8 +491,16 @@ namespace MurderMayhem
                 var name = asAddress.addressPreset.presetName;
                 if (name == "Ballroom" || name == "CityHallLobby")
                 {
-                    Plugin.Log?.LogInfo($"[Patch] IsWorkLocationUsable: Rejected banned address preset {name}");
-                    return false;
+                    if (caseInfo?.HasAllowAnywhereMayhem == true)
+                    {
+                        Plugin.Log?.LogInfo($"[Patch] IsWorkLocationUsable: Allowed banned address preset {name}");
+                        return true;
+                    }
+                    else
+                    {
+                        Plugin.Log?.LogInfo($"[Patch] IsWorkLocationUsable: Rejected banned address preset {name}");
+                        return false;
+                    }
                 }
             }
 
