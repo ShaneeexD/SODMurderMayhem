@@ -31,6 +31,7 @@ namespace MurderMayhem
         public bool HasAllowHotelRooftopBarMayhem { get; }
         public bool HasAllowHotelRooftopMayhem { get; }
         public bool HasAllowMixedIndustrialRooftopMayhem { get; }
+        public bool HasAllowPlayerHomeMayhem { get; }
         public bool HasAllowTestMayhem { get; }
         public bool HasAllowFathomsPowerRoomMayhem { get; }
         public bool HasAllowVictimHomeRooftopMayhem { get; }
@@ -42,7 +43,7 @@ namespace MurderMayhem
 
         public CustomCaseInfo(string filePath, string presetName, string profileName, 
             bool hasAllowAnywhere, bool hasAllowAnywhereMayhem, bool hasAllowHome, bool hasAllowWork, bool hasAllowWorkMayhem,
-            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowParkMayhem, bool hasAllowHotelBathroomMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, bool hasAllowDinerBathroomMayhem, bool hasAllowFathomsYardBasementMayhem, bool hasAllowFathomsYardRooftopMayhem, bool hasAllowHotelRooftopBarMayhem, bool hasAllowHotelRooftopMayhem, bool hasAllowMixedIndustrialRooftopMayhem, bool hasAllowTestMayhem, bool hasAllowFathomsPowerRoomMayhem, bool hasAllowVictimHomeRooftopMayhem, bool hasAllowVictimWorkRooftopMayhem, bool hasAllowMurdererHomeRooftopMayhem, bool hasAllowMurdererWorkRooftopMayhem, int? occupancyLimit)
+            bool hasAllowAlleyMayhem, bool hasAllowBackstreetsMayhem, bool hasAllowParkMayhem, bool hasAllowHotelBathroomMayhem, bool hasAllowPublic, bool hasAllowStreets, bool hasAllowDen, bool hasAllowDinerBathroomMayhem, bool hasAllowFathomsYardBasementMayhem, bool hasAllowFathomsYardRooftopMayhem, bool hasAllowHotelRooftopBarMayhem, bool hasAllowHotelRooftopMayhem, bool hasAllowMixedIndustrialRooftopMayhem, bool hasAllowTestMayhem, bool hasAllowFathomsPowerRoomMayhem, bool hasAllowVictimHomeRooftopMayhem, bool hasAllowVictimWorkRooftopMayhem, bool hasAllowMurdererHomeRooftopMayhem, bool hasAllowMurdererWorkRooftopMayhem, bool hasAllowPlayerHomeMayhem, int? occupancyLimit)
         {
             FilePath = filePath;
             PresetName = presetName;
@@ -71,6 +72,7 @@ namespace MurderMayhem
             HasAllowVictimWorkRooftopMayhem = hasAllowVictimWorkRooftopMayhem;
             HasAllowMurdererHomeRooftopMayhem = hasAllowMurdererHomeRooftopMayhem;
             HasAllowMurdererWorkRooftopMayhem = hasAllowMurdererWorkRooftopMayhem;
+            HasAllowPlayerHomeMayhem = hasAllowPlayerHomeMayhem;
             OccupancyLimit = occupancyLimit;
         }
 
@@ -106,6 +108,7 @@ namespace MurderMayhem
             if (HasAllowVictimWorkRooftopMayhem) keys.Add("VictimWorkRooftop-Mayhem");
             if (HasAllowMurdererHomeRooftopMayhem) keys.Add("MurdererHomeRooftop-Mayhem");
             if (HasAllowMurdererWorkRooftopMayhem) keys.Add("MurdererWorkRooftop-Mayhem");
+            if (HasAllowPlayerHomeMayhem) keys.Add("PlayerHome-Mayhem");
             if (OccupancyLimit.HasValue) keys.Add($"OccupancyLimit={OccupancyLimit.Value}");
             
             return keys.Count > 0 ? string.Join(", ", keys) : "None";
@@ -177,6 +180,7 @@ namespace MurderMayhem
                             bool hasAllowVictimWorkRooftopMayhem = ExtractBool(content, "allowVictimWorkRooftop-Mayhem");
                             bool hasAllowMurdererHomeRooftopMayhem = ExtractBool(content, "allowMurdererHomeRooftop-Mayhem");
                             bool hasAllowMurdererWorkRooftopMayhem = ExtractBool(content, "allowMurdererWorkRooftop-Mayhem");
+                            bool hasAllowPlayerHomeMayhem = ExtractBool(content, "allowPlayerHome-Mayhem");
 
                             results.Add(new CustomCaseInfo(
                                 jsonPath,
@@ -206,6 +210,7 @@ namespace MurderMayhem
                                 hasAllowVictimWorkRooftopMayhem,
                                 hasAllowMurdererHomeRooftopMayhem,
                                 hasAllowMurdererWorkRooftopMayhem,
+                                hasAllowPlayerHomeMayhem,
                                 occupancyLimit
                             ));
                         }

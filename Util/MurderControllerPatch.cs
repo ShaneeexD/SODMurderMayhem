@@ -80,6 +80,30 @@ namespace MurderMayhem
             {
                 string moName = __instance?.mo?.name ?? "(null)";
                 var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                // New: allowPlayerHome-Mayhem -> prefer the player's home; if absent, fallback to victim's home
+                if (caseInfo?.HasAllowPlayerHomeMayhem == true)
+                {
+                    var playerHome = Player.Instance?.home;
+                    if (playerHome != null && MurderPatchHelpers.IsLocationUsable(__instance, playerHome, caseInfo))
+                    {
+                        newTargetSite = playerHome;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: Overriding to PLAYER HOME due to allowPlayerHome-Mayhem");
+                        try { __instance.SetMurderLocation(newTargetSite); } catch (Exception ex) { Plugin.Log?.LogWarning($"[Patch] TryPickNewVictimSitePrefix: SetMurderLocation failed: {ex.Message}"); }
+                        return false;
+                    }
+                    // Fallback to victim home
+                    var victimHomeAddr = __instance?.victim?.home;
+                    if (victimHomeAddr != null && MurderPatchHelpers.IsLocationUsable(__instance, victimHomeAddr, caseInfo))
+                    {
+                        newTargetSite = victimHomeAddr;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: Player home missing; falling back to VICTIM HOME due to allowPlayerHome-Mayhem");
+                        try { __instance.SetMurderLocation(newTargetSite); } catch (Exception ex) { Plugin.Log?.LogWarning($"[Patch] TryPickNewVictimSitePrefix: SetMurderLocation failed: {ex.Message}"); }
+                        return false;
+                    }
+                    Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSitePrefix: Player/Victim home not usable; continuing vanilla for allowPlayerHome-Mayhem");
+                }
                 // Hardcoded: allowVictimHomeRooftop-Mayhem
                 if (caseInfo?.HasAllowVictimHomeRooftopMayhem == true)
                 {
@@ -203,6 +227,26 @@ namespace MurderMayhem
                 Plugin.Log?.LogInfo($"[Patch] TryPickNewVictimSite called. MO={moName}, result={__result}, site={siteName}");
 
                 var caseInfo = MurderPatchHelpers.GetCustomCaseInfoForMO(moName);
+                // Fallback: allowPlayerHome-Mayhem (if prefix/vanilla did not set a site)
+                if ((!__result || newTargetSite == null) && caseInfo?.HasAllowPlayerHomeMayhem == true)
+                {
+                    var playerHome = Player.Instance?.home;
+                    if (playerHome != null && MurderPatchHelpers.IsLocationUsable(__instance, playerHome, caseInfo))
+                    {
+                        newTargetSite = playerHome;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSite: Postfix override to PLAYER HOME due to allowPlayerHome-Mayhem");
+                        return;
+                    }
+                    var victimHomeAddr = __instance?.victim?.home;
+                    if (victimHomeAddr != null && MurderPatchHelpers.IsLocationUsable(__instance, victimHomeAddr, caseInfo))
+                    {
+                        newTargetSite = victimHomeAddr;
+                        __result = true;
+                        Plugin.Log?.LogInfo("[Patch] TryPickNewVictimSite: Postfix fallback to VICTIM HOME due to allowPlayerHome-Mayhem");
+                        return;
+                    }
+                }
                 // If allowAnywhere-Mayhem is active, force the victim's current location as the site
                 if (caseInfo?.HasAllowAnywhereMayhem == true && __instance?.victim?.currentGameLocation != null)
                 {
@@ -384,6 +428,28 @@ namespace MurderMayhem
                         __result = true;
                         Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing ANY location due to allowAnywhere-Mayhem");
                     }
+                    // Allow player home address when allowPlayerHome-Mayhem is active
+                    if (!__result && caseInfo?.HasAllowPlayerHomeMayhem == true)
+                    {
+                        var playerHome = Player.Instance?.home;
+                        if (playerHome != null && newLoc == playerHome && MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                        {
+                            __result = true;
+                            Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing PLAYER HOME due to allowPlayerHome-Mayhem");
+                        }
+                    }
+
+                    // Fallback allowance: if player has NO home, treat VICTIM HOME as valid for allowPlayerHome-Mayhem
+                    if (!__result && caseInfo?.HasAllowPlayerHomeMayhem == true && Player.Instance?.home == null)
+                    {
+                        var victimHome = __instance.victim?.home;
+                        if (victimHome != null && newLoc == (NewGameLocation)victimHome && MurderPatchHelpers.IsLocationUsable(__instance, newLoc, caseInfo))
+                        {
+                            __result = true;
+                            Plugin.Log?.LogInfo("[Patch] IsValidLocation: Allowing VICTIM HOME as fallback due to allowPlayerHome-Mayhem and no player home");
+                        }
+                    }
+
                     // Allow victim home or the victim's building rooftop if the rooftop rule is active
                     if (!__result && caseInfo?.HasAllowVictimHomeRooftopMayhem == true)
                     {
@@ -803,7 +869,7 @@ namespace MurderMayhem
             PresetNames = new[] { "Rooftop" },
             NameContains = new[] { "rooftop", "Rooftop" },
             NameExcludes = Array.Empty<string>(),
-            FloorNameContains = new[] { "shantytown" },
+            FloorNameContains = new[] { "shantytown_firstfloor01", "shantytown_towerrooftop" },
             FloorNameExcludes = Array.Empty<string>(),
             SubRoomNames = Array.Empty<string>(),
             SubRoomPresets = Array.Empty<string>()
@@ -897,9 +963,7 @@ namespace MurderMayhem
                     floorName = floor.transform != null ? floor.transform.name : null;
                 if (string.IsNullOrEmpty(floorName))
                     continue;
-
                 string floorLower = floorName.ToLowerInvariant();
-
                 // Exclusions: if any exclude term is contained, skip this floor name
                 if (rule.FloorNameExcludes != null && rule.FloorNameExcludes.Any(ex => !string.IsNullOrEmpty(ex) && floorLower.Contains(ex)))
                     continue;
@@ -2331,6 +2395,27 @@ namespace MurderMayhem
                 // Anywhere-Mayhem: do not create or alter any movement; base will continue with current location
                 if (caseInfo.HasAllowAnywhereMayhem)
                     return;
+
+                // Custom: allowPlayerHome-Mayhem -> prefer player home; fallback to victim home
+                if (caseInfo.HasAllowPlayerHomeMayhem)
+                {
+                    var target = Player.Instance?.home ?? m.victim?.home;
+                    if (target != null && MurderPatchHelpers.IsLocationUsable(m, target, caseInfo))
+                    {
+                        Game.Log($"[Patch] Murder: Waiting too long! Creating GoTo CUSTOM player/victim home for victim {m.victim.GetCitizenName()} to: {target.name}", 2);
+                        var ai = m.victim.ai;
+                        var node = m.victim.FindSafeTeleport(target, false, true);
+                        if (node == null)
+                        {
+                            var matchedRuleObj = MurderPatchHelpers.GetMatchingRuleForLocation(target, MurderPatchHelpers.GetActiveRules(caseInfo));
+                            node = MurderPatchHelpers.TryFindAnchorNodeFromRooms(target, matchedRuleObj);
+                            if (node != null)
+                                Plugin.Log?.LogInfo($"[Patch] UpdatePatch: Using sub-room anchor fallback for location {target.name}");
+                        }
+                        ai.CreateNewGoal(RoutineControls.Instance.toGoGoal, 0f, 0f, node, null, target, null, null, -2);
+                        return;
+                    }
+                }
 
                 // Custom: allowWork-Mayhem -> send to workplace even if vanilla allowWork is false
                 if (caseInfo.HasAllowWorkMayhem)
